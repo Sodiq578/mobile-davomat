@@ -1,16 +1,18 @@
 {
-  "name": "mobile-davomat",
-  "version": "0.1.0",
+  "name": "employee-monitoring-system",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.1",
-    "@testing-library/user-event": "^13.5.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "react-router-dom": "^6.8.1",
+    "socket.io-client": "^4.5.4",
+    "axios": "^1.3.0",
+    "leaflet": "^1.9.3",
+    "react-leaflet": "^4.2.0",
+    "jwt-decode": "^3.1.2",
+    "date-fns": "^2.29.3"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -20,8 +22,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "react-app",
-      "react-app/jest"
+      "react-app"
     ]
   },
   "browserslist": {
