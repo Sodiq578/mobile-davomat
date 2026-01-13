@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router } from 'react-router-dom'; // O'zgardi
+import { HashRouter as Router } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { EmployeeProvider } from './context/EmployeeContext';
 import { RealtimeProvider } from './context/RealtimeContext';
@@ -10,7 +10,7 @@ import './styles/main.css';
 
 function App() {
   return (
-    <Router> {/* Endi HashRouter ishlaydi */}
+    <Router>
       <AuthProvider>
         <EmployeeProvider>
           <RealtimeProvider>

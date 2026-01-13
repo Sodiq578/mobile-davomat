@@ -119,7 +119,7 @@ const EmployeeDashboard = () => {
       </div>
 
       <div className="quick-actions">
-        <h3>Tezkor Harakatlar</h3>
+        <h3>Tezkor Harakar</h3>
         <div className="action-buttons">
           <a href="/employee/camera" className="action-btn camera-btn">
             📸 Rasm olish

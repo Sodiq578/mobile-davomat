@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useEmployee } from '../../context/EmployeeContext';
 import { useRealtime } from '../../context/RealtimeContext';
 import { useAuth } from '../../context/AuthContext';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
-  const { currentSession, getMyAttendance } = useEmployee();
+  const { currentSession, getMyAttendance, checkIn, checkOut } = useEmployee();
   const { emitStatus } = useRealtime();
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -14,7 +15,7 @@ const EmployeeDashboard = () => {
     
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000);
+    }, 1000); // Har soniyada yangilash
 
     return () => clearInterval(timer);
   }, []);
@@ -22,7 +23,20 @@ const EmployeeDashboard = () => {
   const handleStatusChange = async (newStatus) => {
     if (user?.id) {
       await emitStatus(user.id, newStatus);
-      console.log('Status updated:', newStatus);
+      console.log('Status yangilandi:', newStatus);
+      
+      // Agar ish boshlansa, checkIn qilish
+      if (newStatus === 'ishlayapti' && !currentSession) {
+        await checkIn({
+          timestamp: new Date().toISOString(),
+          location: { lat: 41.3111, lng: 69.2797 }
+        });
+      }
+      
+      // Agar ish tugasa, checkOut qilish
+      if (newStatus === 'chiqib ketdi' && currentSession) {
+        await checkOut();
+      }
     }
   };
 
@@ -37,7 +51,7 @@ const EmployeeDashboard = () => {
 
   return (
     <div style={{
-      padding: '2rem',
+      padding: '1.5rem',
       maxWidth: '1200px',
       margin: '0 auto',
       width: '100%'
@@ -80,7 +94,8 @@ const EmployeeDashboard = () => {
               height: '12px',
               borderRadius: '50%',
               background: currentSession?.status === 'ishlayapti' ? '#10b981' : 
-                         currentSession?.status === 'tanaffus' ? '#f59e0b' : '#94a3b8'
+                         currentSession?.status === 'tanaffus' ? '#f59e0b' : '#94a3b8',
+              animation: currentSession?.status === 'ishlayapti' ? 'pulse 2s infinite' : 'none'
             }}></div>
             <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '1.125rem' }}>
               {currentSession?.status === 'ishlayapti' ? 'Ishlayapti' : 
@@ -90,6 +105,7 @@ const EmployeeDashboard = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <button 
               onClick={() => handleStatusChange('ishlayapti')}
+              disabled={currentSession?.status === 'ishlayapti'}
               style={{
                 padding: '0.75rem',
                 borderRadius: '0.5rem',
@@ -97,13 +113,15 @@ const EmployeeDashboard = () => {
                 background: '#2563eb',
                 color: 'white',
                 border: 'none',
-                cursor: 'pointer'
+                cursor: currentSession?.status === 'ishlayapti' ? 'not-allowed' : 'pointer',
+                opacity: currentSession?.status === 'ishlayapti' ? 0.6 : 1
               }}
             >
-              Ish boshlash
+              {currentSession?.status === 'ishlayapti' ? '✅ Ish boshlangan' : 'Ish boshlash'}
             </button>
             <button 
               onClick={() => handleStatusChange('tanaffus')}
+              disabled={!currentSession}
               style={{
                 padding: '0.75rem',
                 borderRadius: '0.5rem',
@@ -111,13 +129,15 @@ const EmployeeDashboard = () => {
                 background: '#f59e0b',
                 color: 'white',
                 border: 'none',
-                cursor: 'pointer'
+                cursor: !currentSession ? 'not-allowed' : 'pointer',
+                opacity: !currentSession ? 0.6 : 1
               }}
             >
               Tanaffus
             </button>
             <button 
               onClick={() => handleStatusChange('chiqib ketdi')}
+              disabled={!currentSession}
               style={{
                 padding: '0.75rem',
                 borderRadius: '0.5rem',
@@ -125,7 +145,8 @@ const EmployeeDashboard = () => {
                 background: '#f8fafc',
                 color: '#64748b',
                 border: '1px solid #e2e8f0',
-                cursor: 'pointer'
+                cursor: !currentSession ? 'not-allowed' : 'pointer',
+                opacity: !currentSession ? 0.6 : 1
               }}
             >
               Ishni tugatish
@@ -267,7 +288,7 @@ const EmployeeDashboard = () => {
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '1rem'
         }}>
-          <a href="/employee/camera" style={{
+          <Link to="/employee/camera" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -282,8 +303,8 @@ const EmployeeDashboard = () => {
             transition: 'all 0.2s ease'
           }}>
             📸 Rasm olish
-          </a>
-          <a href="/employee/location" style={{
+          </Link>
+          <Link to="/employee/location" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -298,8 +319,8 @@ const EmployeeDashboard = () => {
             transition: 'all 0.2s ease'
           }}>
             📍 Lokatsiyani yuborish
-          </a>
-          <a href="/employee/attendance" style={{
+          </Link>
+          <Link to="/employee/attendance" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -314,9 +335,16 @@ const EmployeeDashboard = () => {
             transition: 'all 0.2s ease'
           }}>
             📝 Davomatni ko'rish
-          </a>
+          </Link>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 };

@@ -11,23 +11,40 @@ const Login = lazy(() => import('../pages/auth/Login'));
 
 // Employee pages
 const EmployeeDashboard = lazy(() => import('../pages/employee/Dashboard'));
-// Tez vaqt uchun boshqa sahifalarni comment qilamiz
-// const CameraPage = lazy(() => import('../pages/employee/CameraPage'));
-// const LocationPage = lazy(() => import('../pages/employee/LocationPage'));
-// const AttendancePage = lazy(() => import('../pages/employee/Attendance'));
+const CameraPage = lazy(() => import('../pages/employee/CameraPage'));
+const LocationPage = lazy(() => import('../pages/employee/LocationPage'));
+// Agar Attendance mavjud bo'lmasa, oddiy component yaratamiz
+const AttendancePage = lazy(() => import('../pages/employee/Attendance'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('../pages/admin/Dashboard'));
-// Tez vaqt uchun boshqa sahifalarni comment qilamiz
-// const EmployeesPage = lazy(() => import('../pages/admin/Employees'));
-// const LiveTrackingPage = lazy(() => import('../pages/admin/LiveTracking'));
-// const MapViewPage = lazy(() => import('../pages/admin/MapView'));
-// const ReportsPage = lazy(() => import('../pages/admin/Reports'));
 
 const LoadingFallback = () => (
-  <div className="loading-container">
-    <div className="loader"></div>
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+    color: 'white'
+  }}>
+    <div style={{
+      width: '48px',
+      height: '48px',
+      border: '5px solid rgba(255,255,255,0.3)',
+      borderBottomColor: 'white',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite',
+      marginBottom: '1rem'
+    }}></div>
     <p>Yuklanmoqda...</p>
+    <style>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
   </div>
 );
 
@@ -57,25 +74,9 @@ const AppRoutes = () => {
           }
         >
           <Route index element={<EmployeeDashboard />} />
-          {/* Keyin boshqa sahifalarni qo'shamiz */}
-          <Route path="camera" element={
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-              <h2>Kamera sahifasi</h2>
-              <p>Tez orada qo'shiladi...</p>
-            </div>
-          } />
-          <Route path="location" element={
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-              <h2>Lokatsiya sahifasi</h2>
-              <p>Tez orada qo'shiladi...</p>
-            </div>
-          } />
-          <Route path="attendance" element={
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-              <h2>Davomat sahifasi</h2>
-              <p>Tez orada qo'shiladi...</p>
-            </div>
-          } />
+          <Route path="camera" element={<CameraPage />} />
+          <Route path="location" element={<LocationPage />} />
+          <Route path="attendance" element={<AttendancePage />} />
         </Route>
 
         {/* Protected routes - Admin */}
@@ -88,31 +89,6 @@ const AppRoutes = () => {
           }
         >
           <Route index element={<AdminDashboard />} />
-          {/* Keyin boshqa sahifalarni qo'shamiz */}
-          <Route path="employees" element={
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-              <h2>Xodimlar sahifasi</h2>
-              <p>Tez orada qo'shiladi...</p>
-            </div>
-          } />
-          <Route path="live" element={
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-              <h2>Real vaqtda kuzatish</h2>
-              <p>Tez orada qo'shiladi...</p>
-            </div>
-          } />
-          <Route path="map" element={
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-              <h2>Xarita sahifasi</h2>
-              <p>Tez orada qo'shiladi...</p>
-            </div>
-          } />
-          <Route path="reports" element={
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-              <h2>Hisobotlar sahifasi</h2>
-              <p>Tez orada qo'shiladi...</p>
-            </div>
-          } />
         </Route>
 
         {/* 404 route */}
