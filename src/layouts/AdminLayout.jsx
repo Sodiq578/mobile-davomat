@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import '../styles/admin-layout.css';
+import './admin-layout.css';
 import { 
   DashboardOutlined, 
   TeamOutlined, 
@@ -14,7 +14,8 @@ import {
   UserOutlined,
   SettingOutlined,
   HomeOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  AppstoreOutlined
 } from '@ant-design/icons';
 
 const AdminLayout = () => {
@@ -141,6 +142,15 @@ const AdminLayout = () => {
           >
             <BarChartOutlined />
             <span className={sidebarCollapsed ? 'hidden' : ''}>Hisobotlar</span>
+          </NavLink>
+
+          {/* Map sahifasi uchun NavLink qo'shish */}
+          <NavLink 
+            to="/admin/map" 
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <AppstoreOutlined />
+            <span className={sidebarCollapsed ? 'hidden' : ''}>Xaritada</span>
           </NavLink>
 
           <NavLink 
@@ -285,3 +295,4 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+

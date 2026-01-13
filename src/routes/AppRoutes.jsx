@@ -6,18 +6,22 @@ import AuthLayout from '../layouts/AuthLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import EmployeeLayout from '../layouts/EmployeeLayout';
 
-// Lazy loading pages
+// Auth pages
 const Login = lazy(() => import('../pages/auth/Login'));
 
 // Employee pages
 const EmployeeDashboard = lazy(() => import('../pages/employee/Dashboard'));
 const CameraPage = lazy(() => import('../pages/employee/CameraPage'));
 const LocationPage = lazy(() => import('../pages/employee/LocationPage'));
-// Agar Attendance mavjud bo'lmasa, oddiy component yaratamiz
 const AttendancePage = lazy(() => import('../pages/employee/Attendance'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('../pages/admin/Dashboard'));
+const Employees = lazy(() => import('../pages/admin/Employees'));
+const LiveTracking = lazy(() => import('../pages/admin/LiveTracking'));
+const Reports = lazy(() => import('../pages/admin/Reports'));
+const MapView = lazy(() => import('../pages/admin/MapView'));
+const Settings = lazy(() => import('../pages/admin/Settings'));
 
 const LoadingFallback = () => (
   <div style={{
@@ -89,6 +93,11 @@ const AppRoutes = () => {
           }
         >
           <Route index element={<AdminDashboard />} />
+          <Route path="employees" element={<Employees />} />
+          <Route path="live-tracking" element={<LiveTracking />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="map-view" element={<MapView />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         {/* 404 route */}

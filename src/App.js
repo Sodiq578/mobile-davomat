@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router } from 'react-router-dom';
+import { BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { EmployeeProvider } from './context/EmployeeContext';
 import { RealtimeProvider } from './context/RealtimeContext';
@@ -23,3 +23,4 @@ function App() {
 }
 
 export default App;
+
