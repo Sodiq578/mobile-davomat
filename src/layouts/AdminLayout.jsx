@@ -92,21 +92,7 @@ const AdminLayout = () => {
           </button>
         </div>
 
-        <div className="user-profile">
-          <div className="avatar">
-            {user?.avatar ? (
-              <img src={user.avatar} alt={user?.name} />
-            ) : (
-              <UserOutlined />
-            )}
-          </div>
-          {!sidebarCollapsed && (
-            <div className="user-details">
-              <h3 className="user-name">{user?.name || 'Administrator'}</h3>
-              <p className="user-role">{user?.position || 'Admin'}</p>
-            </div>
-          )}
-        </div>
+      
 
         <nav className="sidebar-nav">
           <NavLink 
@@ -128,7 +114,7 @@ const AdminLayout = () => {
           </NavLink>
 
           <NavLink 
-            to="/admin/live" 
+            to="/admin/live-tracking" 
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
             <MonitorOutlined />
@@ -146,7 +132,7 @@ const AdminLayout = () => {
 
           {/* Map sahifasi uchun NavLink qo'shish */}
           <NavLink 
-            to="/admin/map" 
+            to="/admin/map-view" 
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
             <AppstoreOutlined />

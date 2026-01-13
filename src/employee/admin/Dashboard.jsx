@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api';
 import EmployeeCard from '../../components/admin/EmployeeCard';
-import '../../styles/admin-dashboard.css';
+import './EmployeeDashboard.css';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({

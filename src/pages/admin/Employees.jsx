@@ -31,73 +31,214 @@ const Employees = () => {
 
   useEffect(() => {
     // Mock data
-    const mockData = [
-      {
-        id: 1,
-        name: 'Aliyev Aziz',
-        position: 'Senior Dasturchi',
-        department: 'IT Bo\'limi',
-        email: 'aziz@company.com',
-        phone: '+998 90 123 45 67',
-        hireDate: '2022-03-15',
-        status: 'active',
-        avatarColor: '#3498db',
-        attendance: 95,
-        lastActivity: 'Bugun, 09:15'
-      },
-      {
-        id: 2,
-        name: 'Hasanova Malika',
-        position: 'Moliya Menejeri',
-        department: 'Moliya',
-        email: 'malika@company.com',
-        phone: '+998 91 234 56 78',
-        hireDate: '2021-08-20',
-        status: 'active',
-        avatarColor: '#e74c3c',
-        attendance: 98,
-        lastActivity: 'Bugun, 08:45'
-      },
-      {
-        id: 3,
-        name: 'Olimov Sardor',
-        position: 'Marketing Direktori',
-        department: 'Marketing',
-        email: 'sardor@company.com',
-        phone: '+998 93 345 67 89',
-        hireDate: '2020-11-10',
-        status: 'on_leave',
-        avatarColor: '#2ecc71',
-        attendance: 88,
-        lastActivity: '1 kun oldin'
-      },
-      {
-        id: 4,
-        name: 'Karimova Nigora',
-        position: 'HR Menejeri',
-        department: 'HR',
-        email: 'nigora@company.com',
-        phone: '+998 94 456 78 90',
-        hireDate: '2023-01-05',
-        status: 'active',
-        avatarColor: '#9b59b6',
-        attendance: 92,
-        lastActivity: 'Bugun, 09:00'
-      },
-      {
-        id: 5,
-        name: 'Temirov Jasur',
-        position: 'Ishlab Chiqarish Menejeri',
-        department: 'Ishlab chiqarish',
-        email: 'jasur@company.com',
-        phone: '+998 95 567 89 01',
-        hireDate: '2019-05-30',
-        status: 'remote',
-        avatarColor: '#f39c12',
-        attendance: 85,
-        lastActivity: '2 kun oldin'
-      }
-    ];
+  const mockData = [
+  {
+    id: 1,
+    name: 'Aliyev Aziz',
+    position: 'Senior Dasturchi',
+    department: 'IT Bo\'limi',
+    email: 'aziz@company.com',
+    phone: '+998 90 123 45 67',
+    hireDate: '2022-03-15',
+    status: 'active',
+    avatarColor: '#3498db',
+    attendance: 95,
+    lastActivity: 'Bugun, 09:15'
+  },
+  {
+    id: 2,
+    name: 'Hasanova Malika',
+    position: 'Moliya Menejeri',
+    department: 'Moliya',
+    email: 'malika@company.com',
+    phone: '+998 91 234 56 78',
+    hireDate: '2021-08-20',
+    status: 'active',
+    avatarColor: '#e74c3c',
+    attendance: 98,
+    lastActivity: 'Bugun, 08:45'
+  },
+  {
+    id: 3,
+    name: 'Olimov Sardor',
+    position: 'Marketing Direktori',
+    department: 'Marketing',
+    email: 'sardor@company.com',
+    phone: '+998 93 345 67 89',
+    hireDate: '2020-11-10',
+    status: 'on_leave',
+    avatarColor: '#2ecc71',
+    attendance: 88,
+    lastActivity: '1 kun oldin'
+  },
+  {
+    id: 4,
+    name: 'Karimova Nigora',
+    position: 'HR Menejeri',
+    department: 'HR',
+    email: 'nigora@company.com',
+    phone: '+998 94 456 78 90',
+    hireDate: '2023-01-05',
+    status: 'active',
+    avatarColor: '#9b59b6',
+    attendance: 92,
+    lastActivity: 'Bugun, 09:00'
+  },
+  {
+    id: 5,
+    name: 'Temirov Jasur',
+    position: 'Ishlab Chiqarish Menejeri',
+    department: 'Ishlab chiqarish',
+    email: 'jasur@company.com',
+    phone: '+998 95 567 89 01',
+    hireDate: '2019-05-30',
+    status: 'remote',
+    avatarColor: '#f39c12',
+    attendance: 85,
+    lastActivity: '2 kun oldin'
+  },
+
+  // IT bo‘limi
+  {
+    id: 6,
+    name: 'Abdullayev Bekzod',
+    position: 'Frontend Dasturchi',
+    department: 'IT Bo\'limi',
+    email: 'bekzod@company.com',
+    phone: '+998 93 111 22 33',
+    hireDate: '2022-06-12',
+    status: 'active',
+    avatarColor: '#2980b9',
+    attendance: 94,
+    lastActivity: 'Bugun, 09:05'
+  },
+  {
+    id: 7,
+    name: 'Ismoilov Akmal',
+    position: 'Backend Dasturchi',
+    department: 'IT Bo\'limi',
+    email: 'akmal@company.com',
+    phone: '+998 94 222 33 44',
+    hireDate: '2021-04-18',
+    status: 'active',
+    avatarColor: '#16a085',
+    attendance: 91,
+    lastActivity: 'Bugun, 08:55'
+  },
+  {
+    id: 8,
+    name: 'To\'xtayeva Mohira',
+    position: 'UI/UX Dizayner',
+    department: 'IT Bo\'limi',
+    email: 'mohira@company.com',
+    phone: '+998 95 333 44 55',
+    hireDate: '2022-01-10',
+    status: 'remote',
+    avatarColor: '#e67e22',
+    attendance: 89,
+    lastActivity: 'Kecha, 17:40'
+  },
+
+  // Moliya
+  {
+    id: 9,
+    name: 'Saidova Gulnoza',
+    position: 'Buxgalter',
+    department: 'Moliya',
+    email: 'gulnoza@company.com',
+    phone: '+998 97 444 55 66',
+    hireDate: '2020-09-09',
+    status: 'active',
+    avatarColor: '#c0392b',
+    attendance: 97,
+    lastActivity: 'Bugun, 08:35'
+  },
+  {
+    id: 10,
+    name: 'Qodirov Jamshid',
+    position: 'Moliya Mutaxassisi',
+    department: 'Moliya',
+    email: 'jamshid@company.com',
+    phone: '+998 98 555 66 77',
+    hireDate: '2022-07-10',
+    status: 'active',
+    avatarColor: '#27ae60',
+    attendance: 93,
+    lastActivity: 'Bugun, 09:10'
+  },
+
+  // Marketing
+  {
+    id: 11,
+    name: 'G\'aniyeva Shahnoza',
+    position: 'SMM Mutaxassisi',
+    department: 'Marketing',
+    email: 'shahnoza@company.com',
+    phone: '+998 91 666 77 88',
+    hireDate: '2023-05-15',
+    status: 'remote',
+    avatarColor: '#8e44ad',
+    attendance: 87,
+    lastActivity: '3 kun oldin'
+  },
+  {
+    id: 12,
+    name: 'Rustamov Farrux',
+    position: 'Kontent Menejeri',
+    department: 'Marketing',
+    email: 'farrux@company.com',
+    phone: '+998 90 777 88 99',
+    hireDate: '2021-11-01',
+    status: 'active',
+    avatarColor: '#34495e',
+    attendance: 90,
+    lastActivity: 'Bugun, 08:50'
+  },
+
+  // HR
+  {
+    id: 13,
+    name: 'Mamatova Dilnoza',
+    position: 'HR Mutaxassisi',
+    department: 'HR',
+    email: 'dilnoza@company.com',
+    phone: '+998 93 888 99 00',
+    hireDate: '2022-10-03',
+    status: 'active',
+    avatarColor: '#1abc9c',
+    attendance: 95,
+    lastActivity: 'Bugun, 09:00'
+  },
+
+  // Logistika
+  {
+    id: 14,
+    name: 'Rahimov Bahodir',
+    position: 'Logistika Menejeri',
+    department: 'Logistika',
+    email: 'bahodir@company.com',
+    phone: '+998 94 999 00 11',
+    hireDate: '2021-12-01',
+    status: 'inactive',
+    avatarColor: '#7f8c8d',
+    attendance: 74,
+    lastActivity: '1 hafta oldin'
+  },
+  {
+    id: 15,
+    name: 'Nurmatov Dilshod',
+    position: 'Ombor Nazoratchisi',
+    department: 'Logistika',
+    email: 'dilshod@company.com',
+    phone: '+998 95 101 11 22',
+    hireDate: '2020-02-14',
+    status: 'active',
+    avatarColor: '#d35400',
+    attendance: 86,
+    lastActivity: 'Bugun, 08:20'
+  }
+];
+
     
     setEmployees(mockData);
     setFilteredEmployees(mockData);
