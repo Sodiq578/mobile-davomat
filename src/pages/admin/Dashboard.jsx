@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
-} from 'recharts';
-import { 
   FaUsers, 
   FaUserCheck, 
   FaUserTimes, 
@@ -16,6 +12,8 @@ import {
   FaClock,
   FaBuilding
 } from 'react-icons/fa';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './dashboard.css';
 
 const Dashboard = () => {
