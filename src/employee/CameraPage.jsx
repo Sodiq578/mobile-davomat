@@ -14,7 +14,7 @@ import {
   FaStop,
   FaPlay
 } from 'react-icons/fa';
-import './CameraPage.css';
+import './cameraPage.css';
 
 const CameraPage = () => {
   const videoRef = useRef(null);
