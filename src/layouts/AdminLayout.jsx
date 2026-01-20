@@ -113,14 +113,7 @@ const AdminLayout = () => {
             <span className="badge">45</span>
           </NavLink>
 
-          <NavLink 
-            to="/admin/live-tracking" 
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            <MonitorOutlined />
-            <span className={sidebarCollapsed ? 'hidden' : ''}>Real vaqtda</span>
-            <span className="live-indicator"></span>
-          </NavLink>
+      
 
           <NavLink 
             to="/admin/reports" 
@@ -131,21 +124,8 @@ const AdminLayout = () => {
           </NavLink>
 
           {/* Map sahifasi uchun NavLink qo'shish */}
-          <NavLink 
-            to="/admin/map-view" 
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            <AppstoreOutlined />
-            <span className={sidebarCollapsed ? 'hidden' : ''}>Xaritada</span>
-          </NavLink>
-
-          <NavLink 
-            to="/admin/settings" 
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            <SettingOutlined />
-            <span className={sidebarCollapsed ? 'hidden' : ''}>Sozlamalar</span>
-          </NavLink>
+    
+      
 
           <div className="nav-divider"></div>
 

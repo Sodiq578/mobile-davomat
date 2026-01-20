@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useEmployee } from '../../context/EmployeeContext';
 import { useRealtime } from '../../context/RealtimeContext';
 import { useAuth } from '../../context/AuthContext';
+import './EmployeeDashboard.css';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();

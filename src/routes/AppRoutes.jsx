@@ -1,74 +1,90 @@
-import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import ProtectedRoute from './ProtectedRoute';
-import AuthLayout from '../layouts/AuthLayout';
-import AdminLayout from '../layouts/AdminLayout';
-import EmployeeLayout from '../layouts/EmployeeLayout';
+import React, { Suspense, lazy } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import ProtectedRoute from "./ProtectedRoute";
 
-// Auth pages
-const Login = lazy(() => import('../pages/auth/Login'));
+// Layouts
+import AuthLayout from "../layouts/AuthLayout";
+import AdminLayout from "../layouts/AdminLayout";
+import EmployeeLayout from "../layouts/EmployeeLayout";
 
-// Employee pages
-const EmployeeDashboard = lazy(() => import('../pages/employee/Dashboard'));
-const CameraPage = lazy(() => import('../pages/employee/CameraPage'));
-const LocationPage = lazy(() => import('../pages/employee/LocationPage'));
-const AttendancePage = lazy(() => import('../pages/employee/Attendance'));
+/* ================= AUTH ================= */
+const Login = lazy(() => import("../pages/auth/Login"));
 
-// Admin pages
-const AdminDashboard = lazy(() => import('../pages/admin/Dashboard'));
-const Employees = lazy(() => import('../pages/admin/Employees'));
-const LiveTracking = lazy(() => import('../pages/admin/LiveTracking'));
-const Reports = lazy(() => import('../pages/admin/Reports'));
-const MapView = lazy(() => import('../pages/admin/MapView'));
-const Settings = lazy(() => import('../pages/admin/Settings'));
+/* ================= EMPLOYEE ================= */
+const EmployeeDashboard = lazy(() =>
+  import("../pages/employee/Dashboard")
+);
+const CameraPage = lazy(() =>
+  import("../pages/employee/CameraPage")
+);
+const AttendancePage = lazy(() =>
+  import("../pages/employee/Attendance")
+);
 
+/* ================= ADMIN ================= */
+const AdminDashboard = lazy(() =>
+  import("../pages/admin/Dashboard")
+);
+const Employees = lazy(() =>
+  import("../pages/admin/Employees")
+);
+const Reports = lazy(() =>
+  import("../pages/admin/Reports")
+);
+
+/* ================= LOADING ================= */
 const LoadingFallback = () => (
-  <div style={{
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-    color: 'white'
-  }}>
-    <div style={{
-      width: '48px',
-      height: '48px',
-      border: '5px solid rgba(255,255,255,0.3)',
-      borderBottomColor: 'white',
-      borderRadius: '50%',
-      animation: 'spin 1s linear infinite',
-      marginBottom: '1rem'
-    }}></div>
+  <div
+    style={{
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#1e3a8a",
+      color: "white",
+      flexDirection: "column",
+    }}
+  >
+    <div
+      style={{
+        width: 40,
+        height: 40,
+        border: "4px solid rgba(255,255,255,0.4)",
+        borderTopColor: "#fff",
+        borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+        marginBottom: 10,
+      }}
+    />
     <p>Yuklanmoqda...</p>
+
     <style>{`
       @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
       }
     `}</style>
   </div>
 );
 
+/* ================= ROUTES ================= */
 const AppRoutes = () => {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
-  if (loading) {
-    return <LoadingFallback />;
-  }
+  if (loading) return <LoadingFallback />;
 
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        {/* Public routes */}
+
+        {/* PUBLIC */}
         <Route path="/" element={<AuthLayout />}>
-          <Route index element={<Navigate to="/login" />} />
+          <Route index element={<Navigate to="/login" replace />} />
           <Route path="login" element={<Login />} />
         </Route>
 
-        {/* Protected routes - Employee */}
+        {/* EMPLOYEE */}
         <Route
           path="/employee"
           element={
@@ -79,11 +95,10 @@ const AppRoutes = () => {
         >
           <Route index element={<EmployeeDashboard />} />
           <Route path="camera" element={<CameraPage />} />
-          <Route path="location" element={<LocationPage />} />
           <Route path="attendance" element={<AttendancePage />} />
         </Route>
 
-        {/* Protected routes - Admin */}
+        {/* ADMIN */}
         <Route
           path="/admin"
           element={
@@ -94,14 +109,12 @@ const AppRoutes = () => {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="employees" element={<Employees />} />
-          <Route path="live-tracking" element={<LiveTracking />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="map-view" element={<MapView />} />
-          <Route path="settings" element={<Settings />} />
         </Route>
 
-        {/* 404 route */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* 404 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </Suspense>
   );
