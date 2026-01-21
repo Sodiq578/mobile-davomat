@@ -1,823 +1,906 @@
+// src/pages/admin/Reports.jsx
 import React, { useState, useEffect } from 'react';
-import {
-  FaFilter,
-  FaCalendarAlt,
-  FaDownload,
-  FaPrint,
-  FaChartBar,
-  FaChartLine,
-  FaChartPie,
-  FaTable,
-  FaUser,
-  FaClock,
-  FaMapMarkerAlt,
-  FaBuilding,
-  FaFileExcel,
-  FaFilePdf,
-  FaFileCsv,
-  FaEye,
-  FaShare,
-  FaCog,
-  FaSort,
-  FaSortUp,
-  FaSortDown
+import { 
+  FaFilePdf, FaFileExcel, FaDownload, FaCalendarAlt,
+  FaFilter, FaChartBar, FaPrint, FaFileArchive,
+  FaClock, FaUsers, FaBuilding, FaChartLine,
+  FaChartPie, FaUserCheck, FaMoneyBillWave, FaStar,
+  FaCheckCircle, FaTimes, FaSpinner, FaExclamationTriangle,
+  FaEye, FaSort, FaSortUp, FaSortDown, FaFileCsv,
+  FaCalendar, FaChartArea, FaDatabase
 } from 'react-icons/fa';
-import './Reports.css';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import './reports.css';
+
+// Ma'lumotlar - agar departments import qilinmasa
+const departments = ['IT Department', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations', 'Development', 'Support'];
 
 const Reports = () => {
-  const [activeReport, setActiveReport] = useState('attendance');
-  const [dateRange, setDateRange] = useState({
-    start: '2024-01-01',
-    end: '2024-01-31'
+  const [employees, setEmployees] = useState([]);
+  const [dateRange, setDateRange] = useState({ 
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 kun oldin
+    end: new Date().toISOString().split('T')[0] // Bugun
   });
-  const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [sortBy, setSortBy] = useState('date');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [reportData, setReportData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [chartType, setChartType] = useState('bar'); // 'bar', 'line', 'pie'
+  const [reportType, setReportType] = useState('attendance');
+  const [department, setDepartment] = useState('all');
+  const [showFormatModal, setShowFormatModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [searchTerm, setSearchTerm] = useState('');
 
+  // Hisobot turlari
   const reportTypes = [
-    { id: 'attendance', label: 'Davomat Hisoboti', icon: <FaUser /> },
-    { id: 'working_hours', label: 'Ish Vaqti', icon: <FaClock /> },
-    { id: 'location', label: 'Joylashuv Hisoboti', icon: <FaMapMarkerAlt /> },
-    { id: 'department', label: 'Bo\'limlar Hisoboti', icon: <FaBuilding /> },
-    { id: 'overtime', label: 'Qo\'shimcha Ish', icon: <FaChartLine /> },
-    { id: 'summary', label: 'Umumiy Hisobot', icon: <FaChartBar /> }
+    { 
+      value: 'attendance', 
+      label: 'Davomat hisoboti', 
+      description: 'Xodimlarning davomat statistikasi',
+      icon: <FaUserCheck />, 
+      color: '#10b981' 
+    },
+    { 
+      value: 'department', 
+      label: 'Bo\'limlar hisoboti', 
+      description: 'Bo\'limlar bo\'yicha xodimlar taqsimoti',
+      icon: <FaBuilding />, 
+      color: '#6366f1' 
+    },
+    { 
+      value: 'salary', 
+      label: 'Maosh hisoboti', 
+      description: 'Xodimlar maoshlari va o\'rtacha maosh',
+      icon: <FaMoneyBillWave />, 
+      color: '#f59e0b' 
+    },
+    { 
+      value: 'performance', 
+      label: 'Samaradorlik hisoboti', 
+      description: 'Xodimlar samaradorligi va baholari',
+      icon: <FaChartLine />, 
+      color: '#4f46e5' 
+    },
+    { 
+      value: 'late', 
+      label: 'Kechikishlar hisoboti', 
+      description: 'Kechikkan xodimlar ro\'yxati',
+      icon: <FaClock />, 
+      color: '#ef4444' 
+    },
+    { 
+      value: 'remote', 
+      label: 'Uzoq ish hisoboti', 
+      description: 'Uzoqdan ishlayotgan xodimlar',
+      icon: <FaUsers />, 
+      color: '#34d399' 
+    }
   ];
 
-  const departments = [
-    'Barchasi',
-    'IT Bo\'limi',
-    'Moliya',
-    'Marketing',
-    'HR',
-    'Ishlab chiqarish',
-    'Logistika',
-    'Sotuv'
-  ];
-
+  // Ma'lumotlarni yuklash
   useEffect(() => {
-    loadReportData();
-  }, [activeReport, dateRange, selectedDepartment]);
+    const loadData = () => {
+      setIsLoading(true);
+      try {
+        // localStorage dan ma'lumotlarni olish
+        const savedEmployees = localStorage.getItem('hr_employees');
+        
+        if (savedEmployees) {
+          const parsed = JSON.parse(savedEmployees);
+          
+          // Agar localStorage bo'sh bo'lsa, demo ma'lumotlar yaratish
+          if (!parsed || parsed.length === 0) {
+            const demoEmployees = generateDemoData();
+            setEmployees(demoEmployees);
+            localStorage.setItem('hr_employees', JSON.stringify(demoEmployees));
+          } else {
+            setEmployees(parsed);
+          }
+        } else {
+          // Agar localStorage bo'sh bo'lsa, demo ma'lumotlar yaratish
+          const demoEmployees = generateDemoData();
+          setEmployees(demoEmployees);
+          localStorage.setItem('hr_employees', JSON.stringify(demoEmployees));
+        }
+        
+        setError('');
+      } catch (err) {
+        setError('Ma\'lumotlarni yuklashda xatolik yuz berdi');
+        console.error('Error loading data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const loadReportData = () => {
-    setLoading(true);
+    loadData();
+  }, []);
+
+  // Demo ma'lumotlar yaratish
+  const generateDemoData = () => {
+    const names = [
+      'Aliyev Aziz', 'Karimova Malika', 'Toshmatov Jamshid', 'Hasanova Gulnoza',
+      'Yusupov Javohir', 'Sobirova Dilbar', 'Rahmonov Behruz', 'Qodirova Madina',
+      'Ismoilov Shohruh', 'Saidova Ziyoda', 'Nazarov Sardor', 'Olimova Sabina'
+    ];
     
-    // Simulate API call
-    setTimeout(() => {
-      let data = {};
-      
-      switch (activeReport) {
-        case 'attendance':
-          data = generateAttendanceData();
+    const positions = [
+      'Senior Developer', 'Marketing Manager', 'Sales Executive', 'HR Specialist',
+      'Financial Analyst', 'Operations Manager', 'Support Agent', 'Team Lead'
+    ];
+    
+    return names.map((name, index) => ({
+      id: index + 1,
+      name,
+      position: positions[Math.floor(Math.random() * positions.length)],
+      department: departments[Math.floor(Math.random() * departments.length)],
+      email: `${name.toLowerCase().replace(/\s+/g, '.')}@company.uz`,
+      phone: `+9989${Math.floor(Math.random() * 90000000) + 10000000}`,
+      salary: Math.floor(Math.random() * 10000000) + 5000000,
+      attendance: Math.floor(Math.random() * 20) + 80, // 80-100% oralig'ida
+      status: Math.random() > 0.2 ? 'active' : 'remote',
+      performance: {
+        efficiency: Math.floor(Math.random() * 20) + 80,
+        rating: (Math.random() * 1 + 4).toFixed(1), // 4.0-5.0 oralig'ida
+        lastReview: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      },
+      lastActivity: ['Bugun kelgan', 'Kechikdi 15 daqiqa', 'Uzoq ish rejimi', 'Ta\'tilda'][Math.floor(Math.random() * 4)],
+      avatarColor: ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c'][index % 6]
+    }));
+  };
+
+  // Sort qilish
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Joriy hisobot ma'lumotlari
+  const getCurrentReportData = () => {
+    let data = [];
+
+    switch(reportType) {
+      case 'attendance':
+        data = employees.map(emp => ({
+          name: emp.name,
+          department: emp.department,
+          position: emp.position,
+          attendance: emp.attendance || 0,
+          status: emp.attendance >= 90 ? 'Yaxshi' : emp.attendance >= 80 ? 'O\'rtacha' : 'Yomon',
+          lastActivity: emp.lastActivity
+        }));
+        break;
+
+      case 'department':
+        const deptStats = {};
+        employees.forEach(emp => {
+          const dept = emp.department || 'Noma\'lum';
+          if (!deptStats[dept]) {
+            deptStats[dept] = {
+              count: 0,
+              totalSalary: 0,
+              avgAttendance: 0,
+              employees: []
+            };
+          }
+          deptStats[dept].count++;
+          deptStats[dept].totalSalary += Number(emp.salary) || 0;
+          deptStats[dept].avgAttendance += Number(emp.attendance) || 0;
+          deptStats[dept].employees.push(emp.name);
+        });
+        
+        data = Object.entries(deptStats).map(([name, stats]) => ({
+          name,
+          employeesCount: stats.count,
+          avgSalary: Math.round(stats.totalSalary / stats.count),
+          avgAttendance: Math.round(stats.avgAttendance / stats.count),
+          employees: stats.employees.join(', ')
+        }));
+        break;
+
+      case 'salary':
+        data = employees.map(emp => ({
+          name: emp.name,
+          department: emp.department,
+          position: emp.position,
+          salary: Number(emp.salary) || 0,
+          formattedSalary: new Intl.NumberFormat('uz-UZ').format(emp.salary || 0) + ' so\'m',
+          status: emp.status === 'active' ? 'Faol' : 'Uzoq ish'
+        }));
+        break;
+
+      case 'performance':
+        data = employees.map(emp => ({
+          name: emp.name,
+          department: emp.department,
+          position: emp.position,
+          efficiency: emp.performance?.efficiency || 85,
+          rating: emp.performance?.rating || 4.0,
+          performanceLevel: emp.performance?.efficiency >= 90 ? 'Yuqori' : 
+                          emp.performance?.efficiency >= 80 ? 'O\'rtacha' : 'Past',
+          lastReview: emp.performance?.lastReview || '2024-01-01'
+        }));
+        break;
+
+      case 'late':
+        data = employees
+          .filter(emp => (emp.attendance || 100) < 90)
+          .map(emp => ({
+            name: emp.name,
+            department: emp.department,
+            position: emp.position,
+            attendance: emp.attendance || 0,
+            lateCount: Math.floor((100 - (emp.attendance || 0)) / 5), // Taxminiy kechikishlar soni
+            status: emp.attendance >= 85 ? 'Yengil' : emp.attendance >= 75 ? 'O\'rtacha' : 'Qattiq'
+          }));
+        break;
+
+      case 'remote':
+        data = employees
+          .filter(emp => emp.status === 'remote')
+          .map(emp => ({
+            name: emp.name,
+            department: emp.department,
+            position: emp.position,
+            email: emp.email,
+            phone: emp.phone,
+            salary: Number(emp.salary) || 0,
+            attendance: emp.attendance || 0,
+            lastActivity: emp.lastActivity || 'Noma\'lum'
+          }));
+        break;
+
+      default:
+        data = [];
+    }
+
+    // Bo'lim bo'yicha filtr
+    if (department !== 'all') {
+      data = data.filter(item => 
+        item.department === department || 
+        (item.name && employees.find(e => e.name === item.name)?.department === department)
+      );
+    }
+
+    // Sana oralig'i bo'yicha filtr (agar mavjud bo'lsa)
+    if (dateRange.start && dateRange.end) {
+      // Bu yerda soralar bo'yicha filtr qo'shishingiz mumkin
+      // Hozircha faqat demo
+    }
+
+    // Qidiruv bo'yicha filtr
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      data = data.filter(item => 
+        Object.values(item).some(value => 
+          value?.toString().toLowerCase().includes(term)
+        )
+      );
+    }
+
+    // Sort qilish
+    if (sortConfig.key) {
+      data.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return data;
+  };
+
+  const currentData = getCurrentReportData();
+
+  // Umumiy statistika
+  const calculateStats = () => {
+    if (employees.length === 0) {
+      return {
+        totalEmployees: 0,
+        avgSalary: 0,
+        avgAttendance: 0,
+        activeEmployees: 0,
+        remoteEmployees: 0,
+        totalSalary: 0
+      };
+    }
+
+    const totalSalary = employees.reduce((sum, emp) => sum + Number(emp.salary || 0), 0);
+    const totalAttendance = employees.reduce((sum, emp) => sum + Number(emp.attendance || 0), 0);
+    const activeEmployees = employees.filter(emp => emp.status === 'active').length;
+    const remoteEmployees = employees.filter(emp => emp.status === 'remote').length;
+
+    return {
+      totalEmployees: employees.length,
+      avgSalary: Math.round(totalSalary / employees.length),
+      avgAttendance: Math.round(totalAttendance / employees.length),
+      activeEmployees,
+      remoteEmployees,
+      totalSalary
+    };
+  };
+
+  const stats = calculateStats();
+
+  // Yuklashni boshlash
+  const startDownload = () => {
+    if (currentData.length === 0) {
+      setError('Hisobot uchun ma\'lumot mavjud emas!');
+      return;
+    }
+    setShowFormatModal(true);
+    setError('');
+  };
+
+  // Format tanlanganda yuklash
+  const handleDownload = async (format) => {
+    setShowFormatModal(false);
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const reportName = reportTypes.find(r => r.value === reportType)?.label || 'Hisobot';
+      const fileName = `hisobot_${reportType}_${new Date().toISOString().split('T')[0]}`;
+
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate processing
+
+      switch(format) {
+        case 'pdf':
+          await downloadPDF(reportName, fileName);
           break;
-        case 'working_hours':
-          data = generateWorkingHoursData();
+        case 'csv':
+          await downloadCSV(reportName, fileName);
           break;
-        case 'location':
-          data = generateLocationData();
+        case 'excel':
+          await downloadExcel(reportName, fileName);
           break;
-        case 'department':
-          data = generateDepartmentData();
-          break;
-        case 'overtime':
-          data = generateOvertimeData();
-          break;
-        case 'summary':
-          data = generateSummaryData();
+        case 'json':
+          await downloadJSON(reportName, fileName);
           break;
         default:
-          data = {};
+          throw new Error('Noto\'g\'ri format');
       }
-      
-      setReportData(data);
-      setLoading(false);
-    }, 500);
-  };
 
-  const generateAttendanceData = () => ({
-    title: 'Davomat Hisoboti',
-    summary: {
-      totalEmployees: 45,
-      averageAttendance: 96.5,
-      lateCount: 12,
-      absentCount: 3,
-      earlyLeaveCount: 8
-    },
-    chartData: {
-      labels: ['1-5 Yan', '8-12 Yan', '15-19 Yan', '22-26 Yan', '29-31 Yan'],
-      datasets: [
-        {
-          label: 'Davomat (%)',
-          data: [95, 97, 96, 98, 99],
-          backgroundColor: '#3498db'
-        },
-        {
-          label: 'Kechikishlar',
-          data: [5, 3, 4, 2, 1],
-          backgroundColor: '#e74c3c'
-        }
-      ]
-    },
-    tableData: [
-      { id: 1, employee: 'Aliyev Aziz', department: 'IT', attendance: 99, late: 1, absent: 0 },
-      { id: 2, employee: 'Hasanova Malika', department: 'Moliya', attendance: 98, late: 2, absent: 0 },
-      { id: 3, employee: 'Olimov Sardor', department: 'Marketing', attendance: 95, late: 5, absent: 0 },
-      { id: 4, employee: 'Karimova Nigora', department: 'HR', attendance: 100, late: 0, absent: 0 },
-      { id: 5, employee: 'Temirov Jasur', department: 'Ishlab chiqarish', attendance: 92, late: 8, absent: 0 },
-      { id: 6, employee: 'Shukurova Dinara', department: 'Sotuv', attendance: 97, late: 3, absent: 0 },
-      { id: 7, employee: 'Rahimov Bahodir', department: 'Logistika', attendance: 94, late: 6, absent: 0 },
-      { id: 8, employee: 'Yusupova Madina', department: 'IT', attendance: 99, late: 1, absent: 0 }
-    ]
-  });
-
-  const generateWorkingHoursData = () => ({
-    title: 'Ish Vaqti Hisoboti',
-    summary: {
-      totalHours: 1760,
-      averageHours: 176,
-      overtimeHours: 145,
-      shortHours: 65
-    },
-    chartData: {
-      labels: ['Hafta 1', 'Hafta 2', 'Hafta 3', 'Hafta 4'],
-      datasets: [
-        {
-          label: 'Oʻrtacha ish vaqti (soat)',
-          data: [42, 44, 43, 45],
-          backgroundColor: '#2ecc71'
-        }
-      ]
-    },
-    tableData: [
-      { id: 1, employee: 'Aliyev Aziz', totalHours: 176, regular: 160, overtime: 16 },
-      { id: 2, employee: 'Hasanova Malika', totalHours: 172, regular: 160, overtime: 12 },
-      { id: 3, employee: 'Olimov Sardor', totalHours: 168, regular: 160, overtime: 8 },
-      { id: 4, employee: 'Karimova Nigora', totalHours: 180, regular: 160, overtime: 20 },
-      { id: 5, employee: 'Temirov Jasur', totalHours: 165, regular: 160, overtime: 5 },
-      { id: 6, employee: 'Shukurova Dinara', totalHours: 175, regular: 160, overtime: 15 },
-      { id: 7, employee: 'Rahimov Bahodir', totalHours: 170, regular: 160, overtime: 10 },
-      { id: 8, employee: 'Yusupova Madina', totalHours: 178, regular: 160, overtime: 18 }
-    ]
-  });
-
-  const generateLocationData = () => ({
-    title: 'Joylashuv Hisoboti',
-    summary: {
-      totalLocations: 25,
-      averageAccuracy: 42,
-      zoneViolations: 8,
-      distanceTraveled: 1250
-    },
-    chartData: {
-      labels: ['Ofis', 'Uyda ish', 'Sayohat', 'Mijozlar', 'Boshqa'],
-      datasets: [
-        {
-          label: 'Vaqt ulushi (%)',
-          data: [65, 20, 10, 4, 1],
-          backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#e74c3c']
-        }
-      ]
-    },
-    tableData: [
-      { id: 1, employee: 'Aliyev Aziz', location: 'Ofis', time: '85%', accuracy: '25m' },
-      { id: 2, employee: 'Hasanova Malika', location: 'Ofis', time: '90%', accuracy: '35m' },
-      { id: 3, employee: 'Olimov Sardor', location: 'Sayohat', time: '40%', accuracy: '150m' },
-      { id: 4, employee: 'Karimova Nigora', location: 'Ofis', time: '95%', accuracy: '20m' },
-      { id: 5, employee: 'Temirov Jasur', location: 'Mijozlar', time: '60%', accuracy: '75m' },
-      { id: 6, employee: 'Shukurova Dinara', location: 'Ofis', time: '88%', accuracy: '30m' },
-      { id: 7, employee: 'Rahimov Bahodir', location: 'Logistika', time: '70%', accuracy: '50m' },
-      { id: 8, employee: 'Yusupova Madina', location: 'Ofis', time: '92%', accuracy: '28m' }
-    ]
-  });
-
-  const generateDepartmentData = () => ({
-    title: 'Bo\'limlar Hisoboti',
-    summary: {
-      totalDepartments: 8,
-      bestDepartment: 'IT Bo\'limi',
-      worstDepartment: 'Logistika',
-      overallScore: 88.5
-    },
-    chartData: {
-      labels: ['IT', 'Moliya', 'Marketing', 'HR', 'Ishlab chiqarish', 'Logistika', 'Sotuv'],
-      datasets: [
-        {
-          label: 'Ish samaradorligi (%)',
-          data: [95, 92, 88, 90, 85, 82, 87],
-          backgroundColor: '#9b59b6'
-        }
-      ]
-    },
-    tableData: [
-      { id: 1, department: 'IT Bo\'limi', employees: 12, attendance: 96, productivity: 95 },
-      { id: 2, department: 'Moliya', employees: 8, attendance: 94, productivity: 92 },
-      { id: 3, department: 'Marketing', employees: 10, attendance: 91, productivity: 88 },
-      { id: 4, department: 'HR', employees: 6, attendance: 98, productivity: 90 },
-      { id: 5, department: 'Ishlab chiqarish', employees: 15, attendance: 89, productivity: 85 },
-      { id: 6, department: 'Logistika', employees: 7, attendance: 86, productivity: 82 },
-      { id: 7, department: 'Sotuv', employees: 9, attendance: 92, productivity: 87 }
-    ]
-  });
-
-  const generateOvertimeData = () => ({
-    title: 'Qo\'shimcha Ish Hisoboti',
-    summary: {
-      totalOvertime: 145,
-      averageOvertime: 12.1,
-      highestOvertime: 28,
-      overtimeCost: 4500000
-    },
-    chartData: {
-      labels: ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'],
-      datasets: [
-        {
-          label: 'Qo\'shimcha ish vaqti (soat)',
-          data: [15, 20, 25, 30, 35, 20],
-          backgroundColor: '#f39c12'
-        }
-      ]
-    },
-    tableData: [
-      { id: 1, employee: 'Aliyev Aziz', overtime: 16, rate: '1.5x', amount: '480,000' },
-      { id: 2, employee: 'Hasanova Malika', overtime: 12, rate: '1.5x', amount: '360,000' },
-      { id: 3, employee: 'Olimov Sardor', overtime: 8, rate: '1.5x', amount: '240,000' },
-      { id: 4, employee: 'Karimova Nigora', overtime: 20, rate: '2.0x', amount: '800,000' },
-      { id: 5, employee: 'Temirov Jasur', overtime: 5, rate: '1.5x', amount: '150,000' },
-      { id: 6, employee: 'Shukurova Dinara', overtime: 15, rate: '1.5x', amount: '450,000' },
-      { id: 7, employee: 'Rahimov Bahodir', overtime: 10, rate: '1.5x', amount: '300,000' },
-      { id: 8, employee: 'Yusupova Madina', overtime: 18, rate: '2.0x', amount: '720,000' }
-    ]
-  });
-
-  const generateSummaryData = () => ({
-    title: 'Umumiy Hisobot',
-    summary: {
-      overallScore: 88.5,
-      monthTrend: '+2.5%',
-      bestMetric: 'Davomat (96.5%)',
-      worstMetric: 'Zona buzilishlari (8)'
-    },
-    chartData: {
-      labels: ['Davomat', 'Ish vaqti', 'Mahsuldorlik', 'Xavfsizlik', 'Moliyaviy'],
-      datasets: [
-        {
-          label: 'Koʻrsatkichlar',
-          data: [96.5, 88, 85, 92, 81],
-          backgroundColor: '#1abc9c'
-        }
-      ]
-    },
-    tableData: [
-      { id: 1, metric: 'Davomat', value: '96.5%', trend: '+1.2%', status: 'yaxshi' },
-      { id: 2, metric: 'Ish vaqti', value: '176 soat', trend: '+3.5%', status: 'yaxshi' },
-      { id: 3, metric: 'Mahsuldorlik', value: '85%', trend: '-0.5%', status: 'o\'rtacha' },
-      { id: 4, metric: 'Xavfsizlik', value: '92%', trend: '+2.1%', status: 'yaxshi' },
-      { id: 5, metric: 'Moliyaviy', value: '81%', trend: '-1.8%', status: 'o\'rtacha' },
-      { id: 6, metric: 'Mijozlar', value: '89%', trend: '+0.9%', status: 'yaxshi' },
-      { id: 7, metric: 'Innovatsiya', value: '78%', trend: '+4.2%', status: 'o\'rtacha' },
-      { id: 8, metric: 'Jamoa', value: '94%', trend: '+1.5%', status: 'yaxshi' }
-    ]
-  });
-
-  const handleExport = (format) => {
-    alert(`Hisobot ${format} formatida yuklab olindi`);
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleSort = (column) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('asc');
+      alert(`${reportName} hisoboti ${format.toUpperCase()} formatda yuklandi!`);
+    } catch (err) {
+      setError(`Yuklashda xatolik: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getSortIcon = (column) => {
-    if (sortBy !== column) return <FaSort />;
-    return sortOrder === 'asc' ? <FaSortUp /> : <FaSortDown />;
+  // PDF yuklash
+  const downloadPDF = (reportName, fileName) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new jsPDF();
+        
+        // Sarlavha
+        doc.setFontSize(20);
+        doc.setTextColor(52, 152, 219);
+        doc.text(reportName, 20, 20);
+        
+        // Ma'lumotlar
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Yaratilgan sana: ${new Date().toLocaleString('uz-UZ')}`, 20, 35);
+        doc.text(`Bo'lim: ${department === 'all' ? 'Barchasi' : department}`, 20, 45);
+        doc.text(`Jami yozuvlar: ${currentData.length}`, 20, 55);
+        
+        // Jadval
+        const tableData = currentData.map((item, index) => {
+          if (reportType === 'attendance') {
+            return [index + 1, item.name, item.department, `${item.attendance}%`, item.status];
+          } else if (reportType === 'department') {
+            return [index + 1, item.name, item.employeesCount, item.avgSalary.toLocaleString('uz-UZ') + ' so\'m', `${item.avgAttendance}%`];
+          } else if (reportType === 'salary') {
+            return [index + 1, item.name, item.department, item.formattedSalary, item.status];
+          }
+          return [index + 1, JSON.stringify(item, null, 2)];
+        });
+
+        const headers = reportType === 'attendance' 
+          ? ['#', 'Ism', 'Bo\'lim', 'Davomat', 'Holati']
+          : reportType === 'department'
+          ? ['#', 'Bo\'lim', 'Xodimlar', 'O\'rtacha maosh', 'O\'rtacha davomat']
+          : reportType === 'salary'
+          ? ['#', 'Ism', 'Bo\'lim', 'Maosh', 'Holati']
+          : ['#', 'Ma\'lumot'];
+
+        autoTable(doc, {
+          startY: 65,
+          head: [headers],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { 
+            fillColor: [52, 152, 219],
+            textColor: [255, 255, 255],
+            fontSize: 10
+          },
+          bodyStyles: { fontSize: 9 },
+          alternateRowStyles: { fillColor: [245, 247, 250] }
+        });
+
+        // Pastki qism
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.setTextColor(128, 128, 128);
+          doc.text(`Sahifa ${i} / ${pageCount}`, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+          doc.text('HR Management System', 20, doc.internal.pageSize.height - 10);
+        }
+
+        doc.save(`${fileName}.pdf`);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
   };
 
-  if (loading) {
-    return (
-      <div className="reports-loading">
-        <div className="loading-spinner"></div>
-        <p>Hisobot yuklanmoqda...</p>
-      </div>
-    );
-  }
+  // CSV yuklash
+  const downloadCSV = (reportName, fileName) => {
+    return new Promise((resolve, reject) => {
+      try {
+        let csvContent = '';
+        let headers = [];
+        let rows = [];
+
+        switch(reportType) {
+          case 'attendance':
+            headers = ['Ism', 'Bo\'lim', 'Lavozim', 'Davomat (%)', 'Holati', 'Oxirgi faollik'];
+            rows = currentData.map(d => [
+              d.name,
+              d.department || '',
+              d.position || '',
+              d.attendance,
+              d.status,
+              d.lastActivity || ''
+            ]);
+            break;
+          case 'department':
+            headers = ['Bo\'lim', 'Xodimlar soni', 'O\'rtacha maosh', 'O\'rtacha davomat (%)', 'Xodimlar'];
+            rows = currentData.map(d => [
+              d.name,
+              d.employeesCount,
+              d.avgSalary,
+              d.avgAttendance,
+              d.employees
+            ]);
+            break;
+          case 'salary':
+            headers = ['Ism', 'Bo\'lim', 'Lavozim', 'Maosh (so\'m)', 'Holati'];
+            rows = currentData.map(d => [
+              d.name,
+              d.department || '',
+              d.position || '',
+              d.salary,
+              d.status
+            ]);
+            break;
+          default:
+            headers = ['Ma\'lumot'];
+            rows = currentData.map(d => [JSON.stringify(d)]);
+        }
+
+        // BOM for UTF-8
+        csvContent = '\uFEFF';
+        csvContent += headers.join(',') + '\n';
+        rows.forEach(row => {
+          csvContent += row.map(cell => 
+            typeof cell === 'string' && cell.includes(',') 
+              ? `"${cell.replace(/"/g, '""')}"`
+              : cell
+          ).join(',') + '\n';
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${fileName}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
+  // Excel (CSV formatida)
+  const downloadExcel = (reportName, fileName) => {
+    return downloadCSV(reportName, fileName.replace('.csv', '.xlsx'));
+  };
+
+  // JSON yuklash
+  const downloadJSON = (reportName, fileName) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const reportData = {
+          metadata: {
+            reportName,
+            generatedAt: new Date().toLocaleString('uz-UZ'),
+            department: department === 'all' ? 'Barchasi' : department,
+            dateRange,
+            totalRecords: currentData.length
+          },
+          data: currentData,
+          summary: {
+            averageSalary: stats.avgSalary,
+            averageAttendance: stats.avgAttendance,
+            totalEmployees: stats.totalEmployees
+          }
+        };
+
+        const jsonString = JSON.stringify(reportData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${fileName}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
+  // Jadval ustunlari
+  const getTableColumns = () => {
+    switch(reportType) {
+      case 'attendance':
+        return [
+          { key: 'name', label: 'Ism' },
+          { key: 'department', label: 'Bo\'lim' },
+          { key: 'position', label: 'Lavozim' },
+          { key: 'attendance', label: 'Davomat (%)' },
+          { key: 'status', label: 'Holati' },
+          { key: 'lastActivity', label: 'Oxirgi faollik' }
+        ];
+      case 'department':
+        return [
+          { key: 'name', label: 'Bo\'lim' },
+          { key: 'employeesCount', label: 'Xodimlar soni' },
+          { key: 'avgSalary', label: 'O\'rtacha maosh' },
+          { key: 'avgAttendance', label: 'O\'rtacha davomat' },
+          { key: 'employees', label: 'Xodimlar' }
+        ];
+      case 'salary':
+        return [
+          { key: 'name', label: 'Ism' },
+          { key: 'department', label: 'Bo\'lim' },
+          { key: 'position', label: 'Lavozim' },
+          { key: 'salary', label: 'Maosh (so\'m)' },
+          { key: 'status', label: 'Holati' }
+        ];
+      case 'performance':
+        return [
+          { key: 'name', label: 'Ism' },
+          { key: 'department', label: 'Bo\'lim' },
+          { key: 'position', label: 'Lavozim' },
+          { key: 'efficiency', label: 'Samaradorlik (%)' },
+          { key: 'rating', label: 'Bahosi (5.0)' },
+          { key: 'performanceLevel', label: 'Darajasi' }
+        ];
+      case 'late':
+        return [
+          { key: 'name', label: 'Ism' },
+          { key: 'department', label: 'Bo\'lim' },
+          { key: 'position', label: 'Lavozim' },
+          { key: 'attendance', label: 'Davomat (%)' },
+          { key: 'lateCount', label: 'Kechikishlar' },
+          { key: 'status', label: 'Darajasi' }
+        ];
+      case 'remote':
+        return [
+          { key: 'name', label: 'Ism' },
+          { key: 'department', label: 'Bo\'lim' },
+          { key: 'position', label: 'Lavozim' },
+          { key: 'email', label: 'Email' },
+          { key: 'phone', label: 'Telefon' },
+          { key: 'attendance', label: 'Davomat (%)' }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  // Format qiymatini ko'rsatish
+  const formatValue = (key, value) => {
+    if (key.includes('Salary') || key === 'salary') {
+      return new Intl.NumberFormat('uz-UZ').format(value) + ' so\'m';
+    }
+    if (key.includes('attendance') || key.includes('Attendance') || key === 'efficiency') {
+      return `${value}%`;
+    }
+    if (key === 'rating') {
+      return `${value}/5.0`;
+    }
+    return value;
+  };
 
   return (
     <div className="reports-page">
-      {/* Page Header */}
-      <div className="page-header">
-        <div className="header-left">
-          <h1 className="page-title">Hisobotlar</h1>
-          <p className="page-subtitle">
-            Tizim hisobotlari va statistik tahlillar
-          </p>
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="download-loading">
+          <div className="loading-spinner"></div>
+          <p>Hisobot yuklanmoqda...</p>
         </div>
-        <div className="header-right">
-          <div className="report-actions">
-            <button className="btn btn-secondary" onClick={handlePrint}>
-              <FaPrint /> Chop etish
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={() => handleExport('PDF')}
-            >
-              <FaFilePdf /> PDF
-            </button>
-            <button className="btn btn-primary">
-              <FaShare /> Ulashish
-            </button>
+      )}
+
+      {/* Sarlavha qismi */}
+      <div className="page-header">
+        <div className="header-content">
+          <h1><FaChartBar /> Hisobotlar</h1>
+          <p>Tizim analitikasi va hisobotlari</p>
+        </div>
+        <div className="header-actions">
+          <button 
+            className="btn btn-primary" 
+            onClick={startDownload}
+            disabled={currentData.length === 0}
+          >
+            <FaDownload /> Hisobot yaratish
+          </button>
+        </div>
+      </div>
+
+      {/* Xatolik xabari */}
+      {error && (
+        <div className="error-message">
+          <FaExclamationTriangle /> {error}
+          <button className="close-btn" onClick={() => setError('')}><FaTimes /></button>
+        </div>
+      )}
+
+      {/* Hisobot turi tugmalari */}
+      <div className="report-type-buttons">
+        {reportTypes.map((type) => (
+          <button
+            key={type.value}
+            className={`report-type-btn ${reportType === type.value ? 'active' : ''}`}
+            onClick={() => setReportType(type.value)}
+            style={{ borderLeftColor: type.color }}
+          >
+            <span className="report-type-color" style={{ backgroundColor: type.color }}></span>
+            {type.icon}
+            {type.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filter qismi */}
+      <div className="filter-section">
+        <div className="filter-card">
+          <h3><FaFilter /> Hisobot sozlamalari</h3>
+          
+          <div className="filter-grid">
+            <div className="filter-group">
+              <label><FaCalendarAlt /> Boshlanish sanasi</label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
+                max={dateRange.end}
+              />
+            </div>
+
+            <div className="filter-group">
+              <label><FaCalendarAlt /> Tugash sanasi</label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
+                min={dateRange.start}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+
+            <div className="filter-group">
+              <label><FaFilter /> Hisobot turi</label>
+              <select value={reportType} onChange={e => setReportType(e.target.value)}>
+                {reportTypes.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label><FaBuilding /> Bo'lim</label>
+              <select value={department} onChange={e => setDepartment(e.target.value)}>
+                <option value="all">Barcha bo'limlar</option>
+                {departments.map((d, idx) => <option key={idx} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Qidiruv */}
+          <div className="search-box" style={{ marginTop: '20px' }}>
+            <input
+              type="text"
+              placeholder="Hisobot ichida qidirish..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <FaSearch className="search-icon" />
+            {searchTerm && (
+              <button className="clear-search" onClick={() => setSearchTerm('')}>
+                <FaTimes />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="reports-container">
-        {/* Report Type Selector */}
-        <div className="report-types">
-          {reportTypes.map(report => (
-            <button
-              key={report.id}
-              className={`report-type-btn ${activeReport === report.id ? 'active' : ''}`}
-              onClick={() => setActiveReport(report.id)}
-            >
-              {report.icon}
-              <span>{report.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="report-filters">
-          <div className="filter-group">
-            <label>
-              <FaCalendarAlt /> Sana oralig'i
-            </label>
-            <div className="date-inputs">
-              <input
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-              />
-              <span>to</span>
-              <input
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-              />
+      {/* Joriy ma'lumotlar haqida */}
+      <div className="report-summary">
+        <div className="summary-card">
+          <div className="summary-header">
+            <h3>
+              {reportTypes.find(r => r.value === reportType)?.icon}
+              {reportTypes.find(r => r.value === reportType)?.label}
+            </h3>
+            <div className="data-count">{currentData.length} ta yozuv</div>
+          </div>
+          <div className="summary-stats">
+            <div>
+              <strong>Hisobot turi:</strong> {reportTypes.find(r => r.value === reportType)?.label}
             </div>
-          </div>
-
-          <div className="filter-group">
-            <label>
-              <FaBuilding /> Bo'lim
-            </label>
-            <select
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-            >
-              {departments.map(dept => (
-                <option key={dept} value={dept === 'Barchasi' ? 'all' : dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>
-              <FaChartBar /> Diagramma turi
-            </label>
-            <div className="chart-type-selector">
-              <button
-                className={`chart-type-btn ${chartType === 'bar' ? 'active' : ''}`}
-                onClick={() => setChartType('bar')}
-              >
-                <FaChartBar /> Bar
-              </button>
-              <button
-                className={`chart-type-btn ${chartType === 'line' ? 'active' : ''}`}
-                onClick={() => setChartType('line')}
-              >
-                <FaChartLine /> Line
-              </button>
-              <button
-                className={`chart-type-btn ${chartType === 'pie' ? 'active' : ''}`}
-                onClick={() => setChartType('pie')}
-              >
-                <FaChartPie /> Pie
-              </button>
+            <div>
+              <strong>Tanlangan bo'lim:</strong> {department === 'all' ? 'Barchasi' : department}
             </div>
-          </div>
-
-          <div className="filter-group">
-            <label>
-              <FaFilter /> Boshqa filtrlari
-            </label>
-            <button className="btn btn-secondary">
-              <FaCog /> Batafsil sozlamalar
-            </button>
+            <div>
+              <strong>Sana oralig'i:</strong> {dateRange.start} dan {dateRange.end} gacha
+            </div>
+            {reportType === 'salary' && (
+              <div>
+                <strong>O'rtacha maosh:</strong> {new Intl.NumberFormat('uz-UZ').format(stats.avgSalary)} so'm
+              </div>
+            )}
+            {reportType === 'attendance' && (
+              <div>
+                <strong>O'rtacha davomat:</strong> {stats.avgAttendance}%
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Report Content */}
-        {reportData && (
-          <>
-            {/* Summary Cards */}
-            <div className="report-summary">
-              <h2>{reportData.title}</h2>
-              <div className="summary-cards">
-                {Object.entries(reportData.summary).map(([key, value], index) => (
-                  <div key={key} className="summary-card">
-                    <div className="summary-value">{value}</div>
-                    <div className="summary-label">
-                      {key === 'totalEmployees' && 'Jami xodimlar'}
-                      {key === 'averageAttendance' && 'Oʻrtacha davomat'}
-                      {key === 'lateCount' && 'Kechikishlar'}
-                      {key === 'absentCount' && 'Davomatsizliklar'}
-                      {key === 'earlyLeaveCount' && 'Erkin ketishlar'}
-                      {key === 'totalHours' && 'Jami ish vaqti'}
-                      {key === 'averageHours' && 'Oʻrtacha ish vaqti'}
-                      {key === 'overtimeHours' && 'Qoʻshimcha ish'}
-                      {key === 'shortHours' && 'Kam ish vaqti'}
-                      {key === 'totalLocations' && 'Joylashuvlar'}
-                      {key === 'averageAccuracy' && 'Oʻrtacha aniqlik'}
-                      {key === 'zoneViolations' && 'Zona buzilishlari'}
-                      {key === 'distanceTraveled' && 'Bosib o\'tilgan masofa (km)'}
-                      {key === 'totalDepartments' && 'Bo\'limlar'}
-                      {key === 'bestDepartment' && 'Eng yaxshi bo\'lim'}
-                      {key === 'worstDepartment' && 'Eng yomon bo\'lim'}
-                      {key === 'overallScore' && 'Umumiy baho'}
-                      {key === 'totalOvertime' && 'Jami qo\'shimcha ish'}
-                      {key === 'averageOvertime' && 'Oʻrtacha qo\'shimcha ish'}
-                      {key === 'highestOvertime' && 'Eng ko\'p qo\'shimcha ish'}
-                      {key === 'overtimeCost' && 'Qo\'shimcha ish xarajati'}
-                      {key === 'monthTrend' && 'Oy trendi'}
-                      {key === 'bestMetric' && 'Eng yaxshi ko\'rsatkich'}
-                      {key === 'worstMetric' && 'Eng yomon ko\'rsatkich'}
+      {/* Ma'lumotlar jadvali */}
+      {currentData.length > 0 ? (
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                {getTableColumns().map((column) => (
+                  <th key={column.key} onClick={() => handleSort(column.key)}>
+                    <div className="sort-header">
+                      {column.label}
+                      {sortConfig.key === column.key ? (
+                        sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />
+                      ) : (
+                        <FaSort />
+                      )}
                     </div>
-                  </div>
+                  </th>
                 ))}
-              </div>
-            </div>
+              </tr>
+            </thead>
+            <tbody>
+              {currentData.map((item, index) => (
+                <tr key={index}>
+                  {getTableColumns().map((column) => (
+                    <td key={column.key}>
+                      {formatValue(column.key, item[column.key])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty-state">
+          <FaDatabase size={48} />
+          <h3>Ma'lumot topilmadi</h3>
+          <p>Tanlangan filterlar bo'yicha hech qanday ma'lumot topilmadi</p>
+        </div>
+      )}
 
-            {/* Chart Section */}
-            <div className="report-chart">
-              <div className="chart-header">
-                <h3>Statistika</h3>
-                <div className="chart-actions">
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => handleExport('PNG')}
-                  >
-                    <FaDownload /> Diagrammani yuklash
-                  </button>
-                </div>
-              </div>
-              <div className="chart-container">
-                <div className="chart-placeholder">
-                  {/* In a real app, this would be a Chart.js or similar chart */}
-                  <div className="chart-simulation">
-                    {chartType === 'bar' && (
-                      <div className="bar-chart">
-                        {reportData.chartData.datasets[0].data.map((value, index) => (
-                          <div key={index} className="bar-container">
-                            <div
-                              className="bar"
-                              style={{
-                                height: `${value}%`,
-                                backgroundColor: Array.isArray(reportData.chartData.datasets[0].backgroundColor) 
-                                  ? reportData.chartData.datasets[0].backgroundColor[index]
-                                  : reportData.chartData.datasets[0].backgroundColor
-                              }}
-                            ></div>
-                            <div className="bar-label">{reportData.chartData.labels[index]}</div>
-                            <div className="bar-value">{value}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {chartType === 'line' && (
-                      <div className="line-chart">
-                        <div className="line-graph">
-                          {reportData.chartData.datasets[0].data.map((value, index, arr) => {
-                            const nextValue = arr[index + 1];
-                            if (!nextValue) return null;
-                            return (
-                              <div key={index} className="line-segment">
-                                <div className="line-dot"></div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="line-labels">
-                          {reportData.chartData.labels.map((label, index) => (
-                            <div key={index} className="line-label">{label}</div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {chartType === 'pie' && (
-                      <div className="pie-chart">
-                        <div className="pie-circle">
-                          {reportData.chartData.datasets[0].data.map((value, index) => (
-                            <div
-                              key={index}
-                              className="pie-slice"
-                              style={{
-                                backgroundColor: reportData.chartData.datasets[0].backgroundColor[index],
-                                transform: `rotate(${index * 45}deg)`
-                              }}
-                            ></div>
-                          ))}
-                        </div>
-                        <div className="pie-legend">
-                          {reportData.chartData.labels.map((label, index) => (
-                            <div key={index} className="legend-item">
-                              <span 
-                                className="legend-color"
-                                style={{ 
-                                  backgroundColor: reportData.chartData.datasets[0].backgroundColor[index] 
-                                }}
-                              ></span>
-                              <span className="legend-label">{label}</span>
-                              <span className="legend-value">
-                                {reportData.chartData.datasets[0].data[index]}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+      {/* Format tanlash modal */}
+      {showFormatModal && (
+        <div className="modal-overlay">
+          <div className="modal format-modal">
+            <div className="modal-header">
+              <h3><FaDownload /> Hisobotni qaysi formatda yuklab olasiz?</h3>
+              <button className="close-btn" onClick={() => setShowFormatModal(false)}>
+                <FaTimes />
+              </button>
             </div>
+            <div className="modal-body">
+              <p className="modal-description">
+                Tanlangan hisobot: <strong>{reportTypes.find(r => r.value === reportType)?.label}</strong><br />
+                Ma'lumotlar soni: <strong>{currentData.length} ta</strong>
+              </p>
+              <div className="format-options">
+                <button className="format-btn pdf" onClick={() => handleDownload('pdf')}>
+                  <FaFilePdf /> PDF formatda
+                  <small>Chop etish va hujjat uchun</small>
+                </button>
 
-            {/* Data Table */}
-            <div className="report-table">
-              <div className="table-header">
-                <h3>
-                  <FaTable /> Ma'lumotlar Jadvali
-                </h3>
-                <div className="table-actions">
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => handleExport('Excel')}
-                  >
-                    <FaFileExcel /> Excel
-                  </button>
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => handleExport('CSV')}
-                  >
-                    <FaFileCsv /> CSV
-                  </button>
-                </div>
-              </div>
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th onClick={() => handleSort('id')}>
-                        ID {getSortIcon('id')}
-                      </th>
-                      {activeReport === 'attendance' && (
-                        <>
-                          <th onClick={() => handleSort('employee')}>
-                            Xodim {getSortIcon('employee')}
-                          </th>
-                          <th onClick={() => handleSort('department')}>
-                            Bo'lim {getSortIcon('department')}
-                          </th>
-                          <th onClick={() => handleSort('attendance')}>
-                            Davomat (%) {getSortIcon('attendance')}
-                          </th>
-                          <th onClick={() => handleSort('late')}>
-                            Kechikish {getSortIcon('late')}
-                          </th>
-                          <th onClick={() => handleSort('absent')}>
-                            Davomatsiz {getSortIcon('absent')}
-                          </th>
-                        </>
-                      )}
-                      {activeReport === 'working_hours' && (
-                        <>
-                          <th onClick={() => handleSort('employee')}>
-                            Xodim {getSortIcon('employee')}
-                          </th>
-                          <th onClick={() => handleSort('totalHours')}>
-                            Jami soat {getSortIcon('totalHours')}
-                          </th>
-                          <th onClick={() => handleSort('regular')}>
-                            Oddiy ish {getSortIcon('regular')}
-                          </th>
-                          <th onClick={() => handleSort('overtime')}>
-                            Qo'shimcha ish {getSortIcon('overtime')}
-                          </th>
-                        </>
-                      )}
-                      {activeReport === 'location' && (
-                        <>
-                          <th onClick={() => handleSort('employee')}>
-                            Xodim {getSortIcon('employee')}
-                          </th>
-                          <th onClick={() => handleSort('location')}>
-                            Joylashuv {getSortIcon('location')}
-                          </th>
-                          <th onClick={() => handleSort('time')}>
-                            Vaqt ulushi {getSortIcon('time')}
-                          </th>
-                          <th onClick={() => handleSort('accuracy')}>
-                            Aniqlik {getSortIcon('accuracy')}
-                          </th>
-                        </>
-                      )}
-                      {activeReport === 'department' && (
-                        <>
-                          <th onClick={() => handleSort('department')}>
-                            Bo'lim {getSortIcon('department')}
-                          </th>
-                          <th onClick={() => handleSort('employees')}>
-                            Xodimlar {getSortIcon('employees')}
-                          </th>
-                          <th onClick={() => handleSort('attendance')}>
-                            Davomat {getSortIcon('attendance')}
-                          </th>
-                          <th onClick={() => handleSort('productivity')}>
-                            Samaradorlik {getSortIcon('productivity')}
-                          </th>
-                        </>
-                      )}
-                      {activeReport === 'overtime' && (
-                        <>
-                          <th onClick={() => handleSort('employee')}>
-                            Xodim {getSortIcon('employee')}
-                          </th>
-                          <th onClick={() => handleSort('overtime')}>
-                            Qo'shimcha ish {getSortIcon('overtime')}
-                          </th>
-                          <th onClick={() => handleSort('rate')}>
-                            Daraja {getSortIcon('rate')}
-                          </th>
-                          <th onClick={() => handleSort('amount')}>
-                            Miqdori {getSortIcon('amount')}
-                          </th>
-                        </>
-                      )}
-                      {activeReport === 'summary' && (
-                        <>
-                          <th onClick={() => handleSort('metric')}>
-                            Ko'rsatkich {getSortIcon('metric')}
-                          </th>
-                          <th onClick={() => handleSort('value')}>
-                            Qiymat {getSortIcon('value')}
-                          </th>
-                          <th onClick={() => handleSort('trend')}>
-                            Trend {getSortIcon('trend')}
-                          </th>
-                          <th onClick={() => handleSort('status')}>
-                            Status {getSortIcon('status')}
-                          </th>
-                        </>
-                      )}
-                      <th>Harakatlar</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reportData.tableData.map((row, index) => (
-                      <tr key={row.id}>
-                        <td>{row.id}</td>
-                        {activeReport === 'attendance' && (
-                          <>
-                            <td>{row.employee}</td>
-                            <td>{row.department}</td>
-                            <td>
-                              <div className="progress-cell">
-                                <span>{row.attendance}%</span>
-                                <div className="cell-progress">
-                                  <div 
-                                    className="progress-fill"
-                                    style={{ width: `${row.attendance}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </td>
-                            <td>
-                              <span className={`badge ${row.late <= 2 ? 'success' : row.late <= 5 ? 'warning' : 'danger'}`}>
-                                {row.late}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`badge ${row.absent === 0 ? 'success' : 'danger'}`}>
-                                {row.absent}
-                              </span>
-                            </td>
-                          </>
-                        )}
-                        {activeReport === 'working_hours' && (
-                          <>
-                            <td>{row.employee}</td>
-                            <td>
-                              <strong>{row.totalHours}</strong> soat
-                            </td>
-                            <td>{row.regular} soat</td>
-                            <td>
-                              <span className="badge warning">{row.overtime} soat</span>
-                            </td>
-                          </>
-                        )}
-                        {activeReport === 'location' && (
-                          <>
-                            <td>{row.employee}</td>
-                            <td>{row.location}</td>
-                            <td>
-                              <div className="progress-cell">
-                                <span>{row.time}</span>
-                                <div className="cell-progress">
-                                  <div 
-                                    className="progress-fill"
-                                    style={{ width: parseInt(row.time) }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </td>
-                            <td>
-                              <span className={`badge ${parseInt(row.accuracy) <= 50 ? 'success' : 'warning'}`}>
-                                {row.accuracy}
-                              </span>
-                            </td>
-                          </>
-                        )}
-                        {activeReport === 'department' && (
-                          <>
-                            <td>{row.department}</td>
-                            <td>{row.employees}</td>
-                            <td>{row.attendance}%</td>
-                            <td>
-                              <div className="progress-cell">
-                                <span>{row.productivity}%</span>
-                                <div className="cell-progress">
-                                  <div 
-                                    className="progress-fill"
-                                    style={{ width: `${row.productivity}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </td>
-                          </>
-                        )}
-                        {activeReport === 'overtime' && (
-                          <>
-                            <td>{row.employee}</td>
-                            <td>
-                              <span className="badge warning">{row.overtime} soat</span>
-                            </td>
-                            <td>{row.rate}</td>
-                            <td>
-                              <strong>{row.amount} so'm</strong>
-                            </td>
-                          </>
-                        )}
-                        {activeReport === 'summary' && (
-                          <>
-                            <td>{row.metric}</td>
-                            <td>{row.value}</td>
-                            <td>
-                              <span className={`trend ${row.trend.startsWith('+') ? 'up' : 'down'}`}>
-                                {row.trend}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`status-badge ${row.status}`}>
-                                {row.status === 'yaxshi' ? '✓' : row.status === 'o\'rtacha' ? '~' : '✗'} {row.status}
-                              </span>
-                            </td>
-                          </>
-                        )}
-                        <td>
-                          <button className="table-action-btn">
-                            <FaEye /> Ko'rish
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <button className="format-btn csv" onClick={() => handleDownload('excel')}>
+                  <FaFileExcel /> Excel formatda
+                  <small>Excelda tahlil qilish uchun</small>
+                </button>
+
+                <button className="format-btn json" onClick={() => handleDownload('json')}>
+                  <FaFileArchive /> JSON formatda
+                  <small>Dasturlash va tahlil uchun</small>
+                </button>
               </div>
             </div>
-          </>
-        )}
+          </div>
+        </div>
+      )}
+
+      {/* Umumiy statistika */}
+      <div className="stats-section">
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FaUsers />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.totalEmployees}</h3>
+            <p>Jami xodimlar</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon success">
+            <FaUserCheck />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.activeEmployees}</h3>
+            <p>Faol xodimlar</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon warning">
+            <FaMoneyBillWave />
+          </div>
+          <div className="stat-content">
+            <h3>
+              {stats.avgSalary ? (stats.avgSalary / 1000000).toFixed(1) + ' mln' : '0'}
+            </h3>
+            <p>O'rtacha maosh</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon primary">
+            <FaChartLine />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.avgAttendance}%</h3>
+            <p>O'rtacha davomat</p>
+          </div>
+        </div>
       </div>
     </div>
   );

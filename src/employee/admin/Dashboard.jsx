@@ -1,3 +1,4 @@
+// src/pages/admin/Dashboard.js
 import React, { useState, useEffect } from 'react';
 import { 
   FaUsers, 
@@ -17,8 +18,23 @@ import {
   FaMobileAlt,
   FaDesktop
 } from 'react-icons/fa';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { 
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from 'recharts';
+import { 
+  employees,
+  getStatistics,
+  getWeeklyAttendance,
+  getDepartmentDistribution,
+  getRecentActivities,
+  departments,
+  getEmployeesByDepartment,
+  getActiveEmployees,
+  getRemoteEmployees,
+  getOnLeaveEmployees,
+  getLateEmployees
+} from '../../data';
 import './dashboard.css';
 
 // Modal komponenti
@@ -26,66 +42,161 @@ const StatModal = ({ isOpen, onClose, cardData, stats }) => {
   if (!isOpen) return null;
 
   const getModalContent = () => {
+    const activeEmps = getActiveEmployees();
+    const remoteEmps = getRemoteEmployees();
+    const lateEmps = getLateEmployees();
+    const onLeaveEmps = getOnLeaveEmployees();
+
     switch(cardData.title) {
       case 'Jami Xodimlar':
         return {
           title: 'Xodimlar Statistikasi',
           data: [
-            { label: 'Jami xodimlar', value: stats.totalEmployees, color: '#4a90e2' },
-            { label: 'Faol xodimlar', value: stats.activeEmployees, color: '#2e7d32' },
-            { label: 'Faol emas', value: stats.inactiveEmployees, color: '#757575' },
-            { label: 'Erkaklar', value: 28, color: '#1976d2' },
-            { label: 'Ayollar', value: 17, color: '#d81b60' },
+            { 
+              label: 'Jami xodimlar', 
+              value: stats.totalEmployees, 
+              color: '#4a90e2',
+              employees: employees.map(emp => emp.name)
+            },
+            { 
+              label: 'Faol xodimlar', 
+              value: stats.activeEmployees, 
+              color: '#2e7d32',
+              employees: activeEmps.map(emp => emp.name)
+            },
+            { 
+              label: 'Faol emas', 
+              value: stats.inactiveEmployees, 
+              color: '#757575',
+              employees: employees.filter(emp => emp.status !== 'active').map(emp => emp.name)
+            },
+            { 
+              label: 'Erkaklar', 
+              value: stats.genderStats.male, 
+              color: '#1976d2',
+              employees: employees.filter(emp => emp.personal?.gender === 'male').map(emp => emp.name)
+            },
+            { 
+              label: 'Ayollar', 
+              value: stats.genderStats.female, 
+              color: '#d81b60',
+              employees: employees.filter(emp => emp.personal?.gender === 'female').map(emp => emp.name)
+            },
           ]
         };
       case 'Faol Xodimlar':
         return {
           title: 'Faol Xodimlar Tafsilotlari',
           data: [
-            { label: 'Ofisda ishlayotganlar', value: 25, color: '#4caf50' },
-            { label: 'Uzoq ish rejimida', value: 8, color: '#ff9800' },
-            { label: 'Ta\'tilda', value: 5, color: '#2196f3' },
-            { label: 'Ish safari', value: 3, color: '#9c27b0' },
+            { 
+              label: 'Ofisda ishlayotganlar', 
+              value: activeEmps.filter(emp => emp.status === 'active' && emp.device === 'Kompyuter').length, 
+              color: '#4caf50',
+              employees: activeEmps.filter(emp => emp.device === 'Kompyuter').map(emp => emp.name)
+            },
+            { 
+              label: 'Uzoq ish rejimida', 
+              value: remoteEmps.length, 
+              color: '#ff9800',
+              employees: remoteEmps.map(emp => emp.name)
+            },
+            { 
+              label: 'Ta\'tilda', 
+              value: onLeaveEmps.length, 
+              color: '#2196f3',
+              employees: onLeaveEmps.map(emp => emp.name)
+            },
+            { 
+              label: 'Ish safari', 
+              value: activeEmps.filter(emp => emp.location.includes('shahri')).length, 
+              color: '#9c27b0',
+              employees: activeEmps.filter(emp => emp.location.includes('shahri')).map(emp => emp.name)
+            },
           ]
         };
       case 'Bugungi Davomat':
+        const presentEmps = employees.slice(0, stats.presentToday);
+        const lateEmpsToday = employees.slice(0, stats.lateToday);
+        
         return {
           title: 'Bugungi Davomat Tafsilotlari',
           data: [
-            { label: 'O\'z vaqtida kelganlar', value: 32, color: '#4caf50' },
-            { label: 'Kechikkanlar', value: stats.lateToday, color: '#ff9800' },
-            { label: 'Kelishmaganlar', value: 3, color: '#f44336' },
-            { label: 'Ruxsat olganlar', value: 4, color: '#2196f3' },
-            { label: 'Kasallik ta\'tili', value: 3, color: '#9c27b0' },
+            { 
+              label: 'O\'z vaqtida kelganlar', 
+              value: stats.presentToday - stats.lateToday, 
+              color: '#4caf50',
+              employees: presentEmps.filter(emp => !lateEmpsToday.includes(emp)).map(emp => emp.name)
+            },
+            { 
+              label: 'Kechikkanlar', 
+              value: stats.lateToday, 
+              color: '#ff9800',
+              employees: lateEmpsToday.map(emp => emp.name)
+            },
+            { 
+              label: 'Kelishmaganlar', 
+              value: stats.totalEmployees - stats.presentToday, 
+              color: '#f44336',
+              employees: employees.slice(stats.presentToday).map(emp => emp.name)
+            },
+            { 
+              label: 'Ruxsat olganlar', 
+              value: onLeaveEmps.length, 
+              color: '#2196f3',
+              employees: onLeaveEmps.map(emp => emp.name)
+            },
+            { 
+              label: 'Kasallik ta\'tili', 
+              value: onLeaveEmps.filter(emp => emp.status === 'on_leave').length, 
+              color: '#9c27b0',
+              employees: onLeaveEmps.filter(emp => emp.status === 'on_leave').map(emp => emp.name)
+            },
           ]
         };
       case 'Kechikkanlar':
+        const lateEmployeesList = getLateEmployees().slice(0, 3);
+        
         return {
           title: 'Kechikkan Xodimlar',
-          data: [
-            { label: 'Olimov Sardor', value: '25 daqiqa', time: '09:25' },
-            { label: 'Karimova Nigora', value: '15 daqiqa', time: '09:15' },
-            { label: 'Temirov Jasur', value: '45 daqiqa', time: '09:45' },
-          ]
+          data: lateEmployeesList.map((emp, index) => ({
+            label: emp.name,
+            value: `${Math.floor(Math.random() * 45) + 5} daqiqa`,
+            time: `09:${Math.floor(Math.random() * 30) + 5}`,
+            department: emp.department
+          }))
         };
       case 'Uzoq Ish':
         return {
           title: 'Uzoq Ish Rejimi',
-          data: [
-            { label: 'Husanov Bobur', value: 'Toshkent shahri', device: 'Mobil' },
-            { label: 'Yuldasheva Malika', value: 'Yunusobod tumani', device: 'Kompyuter' },
-            { label: 'Rahimov Sherzod', value: 'Chilonzor tumani', device: 'Mobil' },
-            { label: 'Abdullayeva Zilola', value: 'Mirzo Ulug\'bek', device: 'Kompyuter' },
-            { label: 'Ismoilov Jamshid', value: 'Yashnabod tumani', device: 'Mobil' },
-          ]
+          data: remoteEmps.slice(0, 5).map(emp => ({
+            label: emp.name,
+            value: emp.location,
+            device: emp.device,
+            department: emp.department
+          }))
         };
       case 'Faol Emas':
         return {
           title: 'Faol Emas Xodimlar',
           data: [
-            { label: 'Ta\'tilda', value: 4, color: '#ff9800' },
-            { label: 'Kasallik ta\'tili', value: 2, color: '#f44336' },
-            { label: 'Ish safari', value: 1, color: '#2196f3' },
+            { 
+              label: 'Ta\'tilda', 
+              value: onLeaveEmps.length, 
+              color: '#ff9800',
+              employees: onLeaveEmps.map(emp => emp.name)
+            },
+            { 
+              label: 'Kasallik ta\'tili', 
+              value: onLeaveEmps.filter(emp => emp.status === 'on_leave').length, 
+              color: '#f44336',
+              employees: onLeaveEmps.filter(emp => emp.status === 'on_leave').map(emp => emp.name)
+            },
+            { 
+              label: 'Ish safari', 
+              value: remoteEmps.length, 
+              color: '#2196f3',
+              employees: remoteEmps.map(emp => emp.name)
+            },
           ]
         };
       default:
@@ -115,7 +226,12 @@ const StatModal = ({ isOpen, onClose, cardData, stats }) => {
                       style={{ backgroundColor: item.color }}
                     />
                   )}
-                  {item.label}
+                  <div>
+                    {item.label}
+                    {item.department && (
+                      <div className="modal-stat-department">{item.department}</div>
+                    )}
+                  </div>
                 </div>
                 <div className="modal-stat-value">
                   {item.value}
@@ -142,15 +258,7 @@ const StatModal = ({ isOpen, onClose, cardData, stats }) => {
 };
 
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    totalEmployees: 45,
-    activeEmployees: 38,
-    inactiveEmployees: 7,
-    presentToday: 42,
-    lateToday: 3,
-    remoteToday: 5
-  });
-
+  const [stats, setStats] = useState(getStatistics());
   const [attendanceData, setAttendanceData] = useState([]);
   const [departmentData, setDepartmentData] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
@@ -166,76 +274,16 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     
-    // Mock attendance data
-    const mockAttendance = [
-      { name: 'Dush', attendance: 95, late: 2 },
-      { name: 'Sesh', attendance: 92, late: 3 },
-      { name: 'Chor', attendance: 88, late: 5 },
-      { name: 'Pay', attendance: 96, late: 1 },
-      { name: 'Jum', attendance: 90, late: 4 },
-      { name: 'Shan', attendance: 85, late: 6 },
-      { name: 'Yak', attendance: 82, late: 7 }
-    ];
-
-    // Mock department data
-    const mockDepartments = [
-      { name: 'IT', value: 12, color: '#1976d2' },
-      { name: 'Marketing', value: 8, color: '#d32f2f' },
-      { name: 'Moliya', value: 6, color: '#388e3c' },
-      { name: 'HR', value: 5, color: '#f57c00' },
-      { name: 'Sotuv', value: 9, color: '#7b1fa2' },
-      { name: 'Logistika', value: 5, color: '#00796b' }
-    ];
-
-    // Mock recent activities
-    const mockActivities = [
-      { 
-        id: 1, 
-        employee: 'Aliyev Aziz', 
-        action: 'Davomat qayd etdi', 
-        time: '5 daqiqa oldin', 
-        status: 'success',
-        details: 'Ofis: 09:00 da'
-      },
-      { 
-        id: 2, 
-        employee: 'Hasanova Malika', 
-        action: 'GPS joylashuv yangilandi', 
-        time: '15 daqiqa oldin', 
-        status: 'info',
-        details: 'Uzoq ish rejimi'
-      },
-      { 
-        id: 3, 
-        employee: 'Olimov Sardor', 
-        action: 'Kechikdi', 
-        time: '30 daqiqa oldin', 
-        status: 'warning',
-        details: 'Kechikish: 25 daqiqa'
-      },
-      { 
-        id: 4, 
-        employee: 'Karimova Nigora', 
-        action: 'Ta\'tilga chiqdi', 
-        time: '2 soat oldin', 
-        status: 'info',
-        details: 'Kasallik ta\'tili'
-      },
-      { 
-        id: 5, 
-        employee: 'Temirov Jasur', 
-        action: 'Uzoq ish rejimi', 
-        time: '3 soat oldin', 
-        status: 'info',
-        details: 'Manzil: Toshkent sh.'
-      }
-    ];
+    // Ma'lumotlarni data.js dan olish
+    const weeklyAttendance = getWeeklyAttendance();
+    const departmentDistribution = getDepartmentDistribution();
+    const recentActivitiesList = getRecentActivities();
 
     // Simulate API call
     setTimeout(() => {
-      setAttendanceData(mockAttendance);
-      setDepartmentData(mockDepartments);
-      setRecentActivities(mockActivities);
+      setAttendanceData(weeklyAttendance);
+      setDepartmentData(departmentDistribution);
+      setRecentActivities(recentActivitiesList);
       setLoading(false);
     }, 500);
   };
@@ -252,7 +300,8 @@ const Dashboard = () => {
 
   const handlePeriodChange = (period) => {
     setSelectedPeriod(period);
-    // Here you would normally fetch new data based on the selected period
+    // Ma'lumotlarni yangi davr bo'yicha yangilash
+    fetchDashboardData();
   };
 
   const statCards = [
@@ -318,6 +367,20 @@ const Dashboard = () => {
     }
   ];
 
+  // Bo'limlar bo'yicha statistikani hisoblash
+  const departmentStats = departments.map(dept => {
+    const deptEmployees = getEmployeesByDepartment(dept);
+    const avgAttendance = deptEmployees.length > 0 
+      ? deptEmployees.reduce((sum, emp) => sum + emp.attendance, 0) / deptEmployees.length
+      : 0;
+    
+    return {
+      department: dept,
+      count: deptEmployees.length,
+      avgAttendance: Math.round(avgAttendance)
+    };
+  });
+
   if (loading) {
     return (
       <div className="dashboard-page">
@@ -342,7 +405,7 @@ const Dashboard = () => {
             <FaChartLine /> Yangilash
           </button>
           <div className="last-updated">
-            <FaClock /> Oxirgi yangilanish: 09:45
+            <FaClock /> Oxirgi yangilanish: {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
           </div>
         </div>
       </div>
@@ -432,7 +495,7 @@ const Dashboard = () => {
             <h3>Bo'limlar Bo'yicha Xodimlar</h3>
             <div className="chart-info">
               <FaBuilding className="info-icon" />
-              <span>6 ta bo'lim</span>
+              <span>{departments.length} ta bo'lim</span>
             </div>
           </div>
           <div className="chart-container">
@@ -452,19 +515,24 @@ const Dashboard = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => [`${value} ta`, 'Xodimlar']} />
+                <Tooltip 
+                  formatter={(value, name, props) => [
+                    `${value} ta`, 
+                    `${props.payload.name} bo'limi`
+                  ]}
+                />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
             <div className="chart-summary">
-              <p>Eng ko'p xodim: IT bo'limi (12 ta)</p>
-              <p>Eng kam xodim: HR bo'limi (5 ta)</p>
+              <p>Eng ko'p xodim: {departmentData.sort((a, b) => b.value - a.value)[0]?.name} ({departmentData.sort((a, b) => b.value - a.value)[0]?.value} ta)</p>
+              <p>Eng kam xodim: {departmentData.sort((a, b) => a.value - b.value)[0]?.name} ({departmentData.sort((a, b) => a.value - b.value)[0]?.value} ta)</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Recent Activities and Quick Stats */}
+      {/* Bottom Section */}
       <div className="bottom-section">
         {/* Recent Activities */}
         <div className="activities-card">
@@ -498,67 +566,52 @@ const Dashboard = () => {
           <button className="view-all-btn">Barchasini ko'rish →</button>
         </div>
 
-        {/* Quick Stats */}
-        <div className="quick-stats-card">
-          <div className="quick-stats-header">
-            <h3>Tezkor Statistika</h3>
-            <div className="period-selector">
-              <button 
-                className={`period-btn ${selectedPeriod === 'bugun' ? 'active' : ''}`}
-                onClick={() => handlePeriodChange('bugun')}
-              >
-                Bugun
-              </button>
-              <button 
-                className={`period-btn ${selectedPeriod === 'hafta' ? 'active' : ''}`}
-                onClick={() => handlePeriodChange('hafta')}
-              >
-                Hafta
-              </button>
-              <button 
-                className={`period-btn ${selectedPeriod === 'oy' ? 'active' : ''}`}
-                onClick={() => handlePeriodChange('oy')}
-              >
-                Oy
-              </button>
-            </div>
+        {/* Department Statistics */}
+        <div className="department-stats-card">
+          <div className="department-stats-header">
+            <h3>Bo'limlar Statistikasi</h3>
+            <FaBuilding className="header-icon" />
           </div>
-          <div className="quick-stats-grid">
-            <div className="quick-stat">
-              <div className="stat-label">O'rtacha Ish vaqti</div>
-              <div className="stat-value">8.5 soat</div>
-              <div className="stat-trend up">+0.3 soat</div>
-            </div>
-            <div className="quick-stat">
-              <div className="stat-label">O'rtacha Kechikish</div>
-              <div className="stat-value">12 daqiqa</div>
-              <div className="stat-trend down">-3 daqiqa</div>
-            </div>
-            <div className="quick-stat">
-              <div className="stat-label">GPS Aniqlik</div>
-              <div className="stat-value">98.5%</div>
-              <div className="stat-trend up">+0.5%</div>
-            </div>
-            <div className="quick-stat">
-              <div className="stat-label">Tizim Foydalanish</div>
-              <div className="stat-value">94%</div>
-              <div className="stat-trend neutral">0%</div>
-            </div>
+          <div className="department-stats-list">
+            {departmentStats.map((stat, index) => (
+              <div key={index} className="department-stat-item">
+                <div className="department-name">
+                  <FaBuilding className="department-icon" />
+                  {stat.department}
+                </div>
+                <div className="department-info">
+                  <span className="employee-count">{stat.count} xodim</span>
+                  <div className="attendance-bar">
+                    <div 
+                      className="attendance-fill"
+                      style={{ width: `${stat.avgAttendance}%` }}
+                    />
+                    <span className="attendance-percent">{stat.avgAttendance}%</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="system-status">
-            <div className="status-item">
-              <span className="status-label">Tizim holati:</span>
-              <span className="status-value active">✅ Faol</span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">Oxirgi yangilanish:</span>
-              <span className="status-value">Bugun, 09:00</span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">Foydalanuvchilar online:</span>
-              <span className="status-value">42</span>
-            </div>
-          </div>
+        </div>
+      </div>
+
+      {/* System Stats */}
+      <div className="system-stats">
+        <div className="system-stat">
+          <h4>O'rtacha Maosh</h4>
+          <p className="stat-value">{(stats.avgSalary / 1000000).toFixed(1)}M so'm</p>
+        </div>
+        <div className="system-stat">
+          <h4>O'rtacha Davomat</h4>
+          <p className="stat-value">{stats.avgAttendance.toFixed(1)}%</p>
+        </div>
+        <div className="system-stat">
+          <h4>Jami Maosh</h4>
+          <p className="stat-value">{(stats.totalSalary / 1000000).toFixed(1)}M so'm</p>
+        </div>
+        <div className="system-stat">
+          <h4>Erkak:Ayol</h4>
+          <p className="stat-value">{stats.genderStats.male}:{stats.genderStats.female}</p>
         </div>
       </div>
 

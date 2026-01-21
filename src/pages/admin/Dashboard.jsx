@@ -1,72 +1,106 @@
+// src/pages/admin/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  FaUsers, 
-  FaUserCheck, 
-  FaUserTimes, 
-  FaMapMarkerAlt,
-  FaCalendarAlt,
-  FaChartLine,
-  FaExclamationTriangle,
-  FaArrowUp,
-  FaArrowDown,
-  FaClock,
-  FaBuilding
+  FaUsers, FaUserCheck, FaUserTimes, FaMapMarkerAlt,
+  FaCalendarAlt, FaChartLine, FaExclamationTriangle,
+  FaArrowUp, FaArrowDown, FaClock, FaBuilding
 } from 'react-icons/fa';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { 
+  LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from 'recharts';
 import './dashboard.css';
 
+// data.js dan faqat kerakli statik ma'lumotlar va yordamchi funksiyalarni olamiz
+import { departments } from '../../data';
+
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    totalEmployees: 45,
-    activeEmployees: 38,
-    inactiveEmployees: 7,
-    presentToday: 42,
-    lateToday: 3,
-    remoteToday: 5
+  // localStorage'dan xodimlarni o'qiymiz (Employees sahifasida qo'shilganlar shu yerda ko'rinadi)
+  const [employees, setEmployees] = useState(() => {
+    const saved = localStorage.getItem('hr_employees');
+    return saved ? JSON.parse(saved) : [];
   });
 
+  const [stats, setStats] = useState({});
   const [attendanceData, setAttendanceData] = useState([]);
   const [departmentData, setDepartmentData] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
 
   useEffect(() => {
-    // Mock attendance data
-    const mockAttendance = [
-      { name: 'Dush', attendance: 95 },
-      { name: 'Sesh', attendance: 92 },
-      { name: 'Chor', attendance: 88 },
-      { name: 'Pay', attendance: 96 },
-      { name: 'Jum', attendance: 90 },
-      { name: 'Shan', attendance: 85 },
-      { name: 'Yak', attendance: 82 }
+    // localStorage'dagi employees dan barcha hisob-kitoblarni yangilaymiz
+    const totalEmployees = employees.length;
+    const activeEmployees = employees.filter(emp => emp.status === 'active').length;
+    const inactiveEmployees = totalEmployees - activeEmployees;
+    const presentToday = Math.floor(totalEmployees * 0.93) || 0;
+    const lateToday = Math.floor(totalEmployees * 0.07) || 0;
+    const remoteToday = employees.filter(emp => emp.status === 'remote').length;
+
+    // Bo'limlar bo'yicha statistika
+    const departmentStats = {};
+    employees.forEach(emp => {
+      const dept = emp.department || 'Noma\'lum';
+      if (!departmentStats[dept]) {
+        departmentStats[dept] = { count: 0, totalAttendance: 0, totalSalary: 0 };
+      }
+      departmentStats[dept].count++;
+      departmentStats[dept].totalAttendance += Number(emp.attendance) || 0;
+      departmentStats[dept].totalSalary += Number(emp.salary) || 0;
+    });
+
+    // O'rtacha qiymatlar
+    const avgSalary = totalEmployees 
+      ? Math.round(employees.reduce((sum, e) => sum + Number(e.salary || 0), 0) / totalEmployees) 
+      : 0;
+
+    const avgAttendance = totalEmployees 
+      ? Math.round(employees.reduce((sum, e) => sum + Number(e.attendance || 0), 0) / totalEmployees) 
+      : 0;
+
+    setStats({
+      totalEmployees,
+      activeEmployees,
+      inactiveEmployees,
+      presentToday,
+      lateToday,
+      remoteToday,
+      avgSalary,
+      avgAttendance
+    });
+
+    // Haftalik davomat (random generatsiya, real loyihada backenddan keladi)
+    const days = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sha', 'Ya'];
+    const weekly = days.map(day => ({
+      name: day,
+      attendance: Math.floor(Math.random() * 15) + 80
+    }));
+    setAttendanceData(weekly);
+
+    // Bo'limlar taqsimoti (local employees dan)
+    const colors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#a4de6c', '#d0ed57'];
+    const dist = Object.keys(departmentStats).map((dept, i) => ({
+      name: dept,
+      value: departmentStats[dept].count,
+      color: colors[i % colors.length]
+    }));
+    setDepartmentData(dist);
+
+    // So'nggi faoliyatlar (local employees dan generatsiya)
+    const actions = [
+      'Davomat qayd etdi', 'Kechikdi', 'Uzoq ish rejimi', 
+      'GPS joylashuv yangilandi', 'Ishni boshladi'
     ];
+    const activities = employees.slice(0, 6).map(emp => ({
+      id: emp.id,
+      employee: emp.name,
+      action: actions[Math.floor(Math.random() * actions.length)],
+      time: ['5 daqiqa oldin', '15 daqiqa oldin', '30 daqiqa oldin', '1 soat oldin'][Math.floor(Math.random() * 4)],
+      status: Math.random() > 0.6 ? 'success' : Math.random() > 0.3 ? 'warning' : 'info'
+    }));
+    setRecentActivities(activities);
+  }, [employees]);
 
-    // Mock department data
-    const mockDepartments = [
-      { name: 'IT', value: 12, color: '#0088FE' },
-      { name: 'Marketing', value: 8, color: '#00C49F' },
-      { name: 'Moliya', value: 6, color: '#FFBB28' },
-      { name: 'HR', value: 5, color: '#FF8042' },
-      { name: 'Sotuv', value: 9, color: '#8884D8' },
-      { name: 'Logistika', value: 5, color: '#82CA9D' }
-    ];
-
-    // Mock recent activities
-    const mockActivities = [
-      { id: 1, employee: 'Aliyev Aziz', action: 'Davomat qayd etdi', time: '5 daqiqa oldin', status: 'success' },
-      { id: 2, employee: 'Hasanova Malika', action: 'GPS joylashuv yangilandi', time: '15 daqiqa oldin', status: 'info' },
-      { id: 3, employee: 'Olimov Sardor', action: 'Kechikdi', time: '30 daqiqa oldin', status: 'warning' },
-      { id: 4, employee: 'Karimova Nigora', action: 'Ta\'tilga chiqdi', time: '2 soat oldin', status: 'info' },
-      { id: 5, employee: 'Temirov Jasur', action: 'Uzoq ish rejimi', time: '3 soat oldin', status: 'info' }
-    ];
-
-    setAttendanceData(mockAttendance);
-    setDepartmentData(mockDepartments);
-    setRecentActivities(mockActivities);
-  }, []);
-
-  const statCards = [
+  // Statistik kartalar
+  const statCards = stats.totalEmployees ? [
     {
       title: 'Jami Xodimlar',
       value: stats.totalEmployees,
@@ -115,7 +149,7 @@ const Dashboard = () => {
       change: '0',
       changeType: 'neutral'
     }
-  ];
+  ] : [];
 
   return (
     <div className="dashboard-page">
@@ -127,7 +161,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Statistika kartalari */}
       <div className="stats-grid">
         {statCards.map((card, index) => (
           <div key={index} className="stat-card" style={{ borderTopColor: card.color }}>
@@ -147,16 +181,15 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Charts Section */}
+      {/* Grafiklar */}
       <div className="charts-section">
-        {/* Attendance Chart */}
+        {/* Haftalik davomat */}
         <div className="chart-card">
           <div className="chart-header">
             <h3>Haftalik Davomat Statistikasi</h3>
             <select className="chart-period">
               <option>Oxirgi 7 kun</option>
               <option>Oxirgi 30 kun</option>
-              <option>Oxirgi 3 oy</option>
             </select>
           </div>
           <div className="chart-container">
@@ -164,32 +197,22 @@ const Dashboard = () => {
               <LineChart data={attendanceData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="name" stroke="#666" />
-                <YAxis stroke="#666" />
-                <Tooltip 
-                  formatter={(value) => [`${value}%`, 'Davomat']}
-                  labelFormatter={(label) => `Kun: ${label}`}
-                />
+                <YAxis domain={[70, 100]} stroke="#666" />
+                <Tooltip formatter={(value) => [`${value}%`, 'Davomat']} />
                 <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="attendance" 
-                  stroke="#3498db" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
+                <Line type="monotone" dataKey="attendance" stroke="#3498db" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Department Distribution */}
+        {/* Bo'limlar taqsimoti */}
         <div className="chart-card">
           <div className="chart-header">
             <h3>Bo'limlar Bo'yicha Xodimlar</h3>
             <div className="chart-info">
               <FaBuilding className="info-icon" />
-              <span>6 ta bo'lim</span>
+              <span>{departmentData.length} ta bo'lim</span>
             </div>
           </div>
           <div className="chart-container">
@@ -202,7 +225,6 @@ const Dashboard = () => {
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
-                  fill="#8884d8"
                   dataKey="value"
                 >
                   {departmentData.map((entry, index) => (
@@ -217,9 +239,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent Activities and Quick Stats */}
+      {/* So'nggi faoliyatlar */}
       <div className="bottom-section">
-        {/* Recent Activities */}
         <div className="activities-card">
           <div className="activities-header">
             <h3>So'nggi Faoliyatlar</h3>
@@ -246,7 +267,7 @@ const Dashboard = () => {
           <button className="view-all-btn">Barchasini ko'rish →</button>
         </div>
 
-        {/* Quick Stats */}
+        {/* Tezkor statistika */}
         <div className="quick-stats-card">
           <div className="quick-stats-header">
             <h3>Tezkor Statistika</h3>
@@ -259,25 +280,28 @@ const Dashboard = () => {
           <div className="quick-stats-grid">
             <div className="quick-stat">
               <div className="stat-label">O'rtacha Ish vaqti</div>
-              <div className="stat-value">8.5 soat</div>
-              <div className="stat-trend up">+0.3 soat</div>
+              <div className="stat-value">8.4 soat</div>
+              <div className="stat-trend up">+0.2 soat</div>
             </div>
             <div className="quick-stat">
               <div className="stat-label">O'rtacha Kechikish</div>
-              <div className="stat-value">12 daqiqa</div>
-              <div className="stat-trend down">-3 daqiqa</div>
+              <div className="stat-value">14 daqiqa</div>
+              <div className="stat-trend down">-2 daqiqa</div>
             </div>
             <div className="quick-stat">
-              <div className="stat-label">GPS Aniqlik</div>
-              <div className="stat-value">98.5%</div>
-              <div className="stat-trend up">+0.5%</div>
+              <div className="stat-label">O'rtacha Davomat</div>
+              <div className="stat-value">{stats.avgAttendance?.toFixed(1) || 0}%</div>
+              <div className="stat-trend up">+1.2%</div>
             </div>
             <div className="quick-stat">
-              <div className="stat-label">Tizim Foydalanish</div>
-              <div className="stat-value">94%</div>
+              <div className="stat-label">O'rtacha Maosh</div>
+              <div className="stat-value">
+                {stats.avgSalary ? (stats.avgSalary / 1000000).toFixed(1) + ' mln so‘m' : '—'}
+              </div>
               <div className="stat-trend neutral">0%</div>
             </div>
           </div>
+
           <div className="system-status">
             <div className="status-item">
               <span className="status-label">Tizim holati:</span>
@@ -285,7 +309,7 @@ const Dashboard = () => {
             </div>
             <div className="status-item">
               <span className="status-label">Oxirgi yangilanish:</span>
-              <span className="status-value">Bugun, 09:00</span>
+              <span className="status-value">Hozir</span>
             </div>
           </div>
         </div>
