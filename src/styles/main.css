@@ -173,3 +173,18 @@ body {
     page-break-before: always;
   }
 }
+
+
+
+
+
+
+
+
+body{
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+}
