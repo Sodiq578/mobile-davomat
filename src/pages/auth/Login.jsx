@@ -1,5 +1,5 @@
 // src/pages/Login.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   FaUser, 
@@ -18,9 +18,11 @@ import {
   FaHeadset,
   FaMobileAlt,
   FaInfinity,
-  FaBuilding
-} from 'react-icons/fa';
-import { loginWithEmail, loginWithGoogle, registerWithEmail } from '../../api/firebaseAuth.api';
+  FaBuilding,
+  FaWifi,
+  FaDatabase
+} from 'react-icons/fa';   
+import { loginWithEmail, loginWithGoogle, registerWithEmail, isFirebaseAvailable, initDemoAccounts } from '../../utils/firebaseAuth.api';
 import './Login.css';
 
 const Login = () => {
@@ -30,6 +32,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [usingFirebase, setUsingFirebase] = useState(true);
   const [registerData, setRegisterData] = useState({
     fullName: '',
     email: '',
@@ -43,6 +47,26 @@ const Login = () => {
   
   const navigate = useNavigate();
 
+  useEffect(() => {
+    // Internet holatini kuzatish
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Firebase mavjudligini tekshirish
+    setUsingFirebase(isFirebaseAvailable());
+    
+    // Demo hisoblarni yaratish
+    initDemoAccounts();
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -52,9 +76,10 @@ const Login = () => {
       const result = await loginWithEmail(email, password);
       
       if (result.success) {
-        // LocalStorage ga user ma'lumotlarini saqlash
+        // Ma'lumotlarni saqlash
         localStorage.setItem('current_user', JSON.stringify(result.user));
         localStorage.setItem('auth_token', result.token);
+        localStorage.setItem('auth_source', result.source || 'local');
         
         // Rolga qarab yo'naltirish
         if (result.user.role === 'admin') {
@@ -63,28 +88,11 @@ const Login = () => {
           navigate('/employee');
         }
       } else {
-        setError('Email yoki parol noto\'g\'ri');
+        setError(result.message || 'Email yoki parol noto\'g\'ri');
       }
     } catch (err) {
       console.error('Login error:', err);
-      
-      // Firebase error codes ga qarab xatolik xabarini ko'rsatish
-      switch(err.code) {
-        case 'auth/user-not-found':
-          setError('Bu email bilan ro\'yxatdan o\'tilmagan');
-          break;
-        case 'auth/wrong-password':
-          setError('Noto\'g\'ri parol');
-          break;
-        case 'auth/invalid-email':
-          setError('Noto\'g\'ri email formati');
-          break;
-        case 'auth/too-many-requests':
-          setError('Juda ko\'p urinish. Biroz kutib turing');
-          break;
-        default:
-          setError('Kirish muvaffaqiyatsiz. Qayta urinib ko\'ring');
-      }
+      setError('Kirish muvaffaqiyatsiz. Qayta urinib ko\'ring');
     } finally {
       setLoading(false);
     }
@@ -100,6 +108,7 @@ const Login = () => {
       if (result.success) {
         localStorage.setItem('current_user', JSON.stringify(result.user));
         localStorage.setItem('auth_token', result.token);
+        localStorage.setItem('auth_source', result.source || 'local');
         
         if (result.user.role === 'admin') {
           navigate('/admin');
@@ -109,7 +118,7 @@ const Login = () => {
       }
     } catch (err) {
       console.error('Google login error:', err);
-      setError('Google bilan kirish muvaffaqiyatsiz');
+      setError('Google bilan kirish muvaffaqiyatsiz. Demo hisob bilan kirildi');
     } finally {
       setLoading(false);
     }
@@ -145,7 +154,7 @@ const Login = () => {
       });
 
       if (result.success) {
-        setError('✅ Ro\'yxatdan o\'tish muvaffaqiyatli! Iltimos, tizimga kiring.');
+        setError(`✅ Ro'yxatdan o'tish muvaffaqiyatli! (${result.source === 'firebase' ? 'Firebase' : 'Local'})`);
         setActiveTab('login');
         setRegisterData({
           fullName: '',
@@ -164,20 +173,7 @@ const Login = () => {
       }
     } catch (err) {
       console.error('Register error:', err);
-      
-      switch(err.code) {
-        case 'auth/email-already-in-use':
-          setError('Bu email allaqachon ro\'yxatdan o\'tilgan');
-          break;
-        case 'auth/invalid-email':
-          setError('Noto\'g\'ri email formati');
-          break;
-        case 'auth/weak-password':
-          setError('Parol juda oddiy. Kuchliroq parol tanlang');
-          break;
-        default:
-          setError('Ro\'yxatdan o\'tish muvaffaqiyatsiz');
-      }
+      setError('Ro\'yxatdan o\'tish muvaffaqiyatsiz');
     } finally {
       setLoading(false);
     }
@@ -191,27 +187,15 @@ const Login = () => {
     }));
   };
 
-  const handleDemoLogin = async (demoEmail, demoPassword) => {
+  const handleDemoLogin = (demoEmail, demoPassword) => {
     setEmail(demoEmail);
     setPassword(demoPassword);
     
-    // Demo hisob bilan login qilish
-    try {
-      const result = await loginWithEmail(demoEmail, demoPassword);
-      
-      if (result.success) {
-        localStorage.setItem('current_user', JSON.stringify(result.user));
-        localStorage.setItem('auth_token', result.token);
-        
-        if (result.user.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/employee');
-        }
-      }
-    } catch (err) {
-      setError('Demo hisob bilan kirish muvaffaqiyatsiz');
-    }
+    // Auto submit
+    setTimeout(() => {
+      const submitBtn = document.querySelector('.login-btn');
+      if (submitBtn) submitBtn.click();
+    }, 100);
   };
 
   return (
@@ -224,28 +208,47 @@ const Login = () => {
               <span className="brand-name">HR Tizimi</span>
               <span className="brand-badge">PRO</span>
             </div>
+            
+            {/* Connection Status */}
+            <div className="connection-status">
+              <div className={`status-indicator ${isOnline ? 'online' : 'offline'}`}>
+                <div className="status-dot"></div>
+                <span className="status-text">
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+              <div className="database-status">
+                <FaDatabase className={`db-icon ${usingFirebase ? 'firebase' : 'local'}`} />
+                <span className="db-text">
+                  {usingFirebase ? 'Firebase' : 'Local Storage'}
+                </span>
+              </div>
+            </div>
+
             <h1 className="brand-tagline">
-              Xodimlaringizni <span className="highlight">boshqaring</span>
+              {usingFirebase ? 'Cloud' : 'Offline'} <span className="highlight">Boshqaruv</span>
             </h1>
             <p className="brand-description">
-              Zamonaviy HR tizimi bilan xodimlaringizni samarali boshqarish va monitoring qilish
+              {usingFirebase 
+                ? 'Firebase asosida ishlaydigan zamonaviy HR tizimi'
+                : 'Offline rejimda ishlaydigan HR tizimi. Ma\'lumotlar LocalStorage da saqlanadi'}
             </p>
           </div>
 
           <div className="features-grid">
             <div className="feature-card">
               <div className="feature-icon blue-gradient">
-                <FaInfinity />
+                {usingFirebase ? <FaWifi /> : <FaDatabase />}
               </div>
-              <h4>Cheksiz</h4>
-              <p>Har qanday hajmdagi kompaniyalar uchun</p>
+              <h4>{usingFirebase ? 'Cloud' : 'Offline'}</h4>
+              <p>{usingFirebase ? 'Hamma joydan kirish' : 'Offline ishlash'}</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon blue-gradient">
                 <FaHeadset />
               </div>
-              <h4>24/7 Yordam</h4>
-              <p>Doimiy texnik qo'llab-quvvatlash</p>
+              <h4>Auto Backup</h4>
+              <p>Internet yo'q bo'lsa ham ishlaydi</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon blue-gradient">
@@ -259,20 +262,20 @@ const Login = () => {
                 <FaCheck />
               </div>
               <h4>Xavfsiz</h4>
-              <p>Firebase xavfsizlik</p>
+              <p>Ma'lumotlaringiz himoyalangan</p>
             </div>
           </div>
 
           <div className="testimonial">
             <div className="testimonial-content">
               <p className="quote">
-                "Bu tizim bizning HR jarayonlarimizni 50% oshirdi. Juda qulay va samarali!"
+                "Internet yo'q bo'lganda ham ishlay olishi juda qulay. Offline rejimda ham ma'lumotlar saqlanadi!"
               </p>
               <div className="testimonial-author">
                 <div className="author-avatar"></div>
                 <div>
-                  <h5>Alisher Usmonov</h5>
-                  <p>TechCorp HR Menejeri</p>
+                  <h5>Aziz Aliyev</h5>
+                  <p>TechCorp IT Direktori</p>
                 </div>
               </div>
             </div>
@@ -306,11 +309,25 @@ const Login = () => {
             </div>
           )}
 
+          {!isOnline && (
+            <div className="warning-message">
+              <div className="message-icon">⚠️</div>
+              <div>
+                <strong>Offline rejim</strong>
+                <p>Internet aloqasi yo'q. Faqat Local Storage bilan ishlay olasiz</p>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'login' ? (
             <>
               <div className="form-header">
                 <h2 className="form-title">Xush kelibsiz!</h2>
-                <p className="form-subtitle">Hisobingizga kiring</p>
+                <p className="form-subtitle">
+                  {usingFirebase 
+                    ? 'Firebase bilan tizimga kiring' 
+                    : 'Local Storage bilan tizimga kiring'}
+                </p>
               </div>
 
               <form onSubmit={handleLoginSubmit} className="auth-form">
@@ -400,7 +417,8 @@ const Login = () => {
                     type="button" 
                     className="social-btn google-btn"
                     onClick={handleGoogleLogin}
-                    disabled={loading}
+                    disabled={loading || !isOnline}
+                    title={!isOnline ? "Internet aloqasi yo'q" : ""}
                   >
                     <FaGoogle className="social-icon" />
                     Google bilan kirish
@@ -455,7 +473,11 @@ const Login = () => {
             <>
               <div className="form-header">
                 <h2 className="form-title">Yangi hisob ochish</h2>
-                <p className="form-subtitle">Tizimdan foydalanish uchun ro'yxatdan o'ting</p>
+                <p className="form-subtitle">
+                  {usingFirebase 
+                    ? 'Firebase bilan ro\'yxatdan o\'ting' 
+                    : 'Local Storage bilan ro\'yxatdan o\'ting'}
+                </p>
               </div>
 
               <form onSubmit={handleRegisterSubmit} className="auth-form register-form">
@@ -641,8 +663,7 @@ const Login = () => {
                     <input type="checkbox" required />
                     <span className="checkmark"></span>
                     <span>
-                      Men <Link to="/terms">foydalanish shartlari</Link> va{' '}
-                      <Link to="/privacy">maxfiylik siyosati</Link> bilan tanishdim
+                      Men <Link to="/terms">foydalanish shartlari</Link> bilan tanishdim
                     </span>
                   </label>
                 </div>
@@ -674,7 +695,8 @@ const Login = () => {
                     type="button" 
                     className="social-btn google-btn"
                     onClick={handleGoogleLogin}
-                    disabled={loading}
+                    disabled={loading || !isOnline}
+                    title={!isOnline ? "Internet aloqasi yo'q" : ""}
                   >
                     <FaGoogle className="social-icon" />
                     Google bilan ro'yxatdan o'tish
@@ -685,16 +707,16 @@ const Login = () => {
               <div className="register-benefits">
                 <div className="section-header">
                   <FaCheck className="section-icon" />
-                  <h4 className="section-title">Ro'yxatdan o'tish afzalliklari</h4>
+                  <h4 className="section-title">Afzalliklar</h4>
                 </div>
                 <ul className="benefits-list">
                   <li>
                     <FaCheck className="benefit-icon" />
-                    <span>Firebase xavfsizligi</span>
+                    <span>Offline ishlash imkoniyati</span>
                   </li>
                   <li>
                     <FaCheck className="benefit-icon" />
-                    <span>Real-time ma'lumotlar</span>
+                    <span>Auto backup tizimi</span>
                   </li>
                   <li>
                     <FaCheck className="benefit-icon" />
@@ -702,7 +724,7 @@ const Login = () => {
                   </li>
                   <li>
                     <FaCheck className="benefit-icon" />
-                    <span>Bepul boshlang'ich reja</span>
+                    <span>Bepul va ochiq manba</span>
                   </li>
                 </ul>
               </div>
@@ -717,7 +739,7 @@ const Login = () => {
               </Link>
             </p>
             <p className="copyright">
-              © 2024 HR Management System. Firebase asosida.
+              © 2024 HR Management System. {usingFirebase ? 'Firebase' : 'Local Storage'} asosida.
             </p>
           </div>
         </div>

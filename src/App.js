@@ -1,14 +1,20 @@
-import React from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { EmployeeProvider } from './context/EmployeeContext';
-import { RealtimeProvider } from './context/RealtimeContext';
-import AppRoutes from './routes/AppRoutes';
-import './styles/reset.css';
-import './styles/variables.css';
-import './styles/main.css';
+import React from "react";
+import { BrowserRouter as Router } from "react-router-dom";
 
-function App() {
+// ================= CONTEXT =================
+import { AuthProvider } from "./context/AuthContext";
+import { EmployeeProvider } from "./context/EmployeeContext";
+import { RealtimeProvider } from "./context/RealtimeContext";
+
+// ================= ROUTES =================
+import AppRoutes from "./routes/AppRoutes";
+
+// ================= STYLES =================
+import "./styles/reset.css";
+import "./styles/variables.css";
+import "./styles/main.css";
+
+const App = () => {
   return (
     <Router>
       <AuthProvider>
@@ -20,7 +26,6 @@ function App() {
       </AuthProvider>
     </Router>
   );
-}
+};
 
 export default App;
-

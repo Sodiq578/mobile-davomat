@@ -3,15 +3,18 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ProtectedRoute from "./ProtectedRoute";
 
-// Layouts
+// ================= LAYOUTS =================
 import AuthLayout from "../layouts/AuthLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import EmployeeLayout from "../layouts/EmployeeLayout";
 
-/* ================= AUTH ================= */
+// ================= COMMON =================
+import Loader from "../components/common/Loader";
+
+// ================= AUTH =================
 const Login = lazy(() => import("../pages/auth/Login"));
 
-/* ================= EMPLOYEE ================= */
+// ================= EMPLOYEE =================
 const EmployeeDashboard = lazy(() =>
   import("../pages/employee/Dashboard")
 );
@@ -22,7 +25,7 @@ const AttendancePage = lazy(() =>
   import("../pages/employee/Attendance")
 );
 
-/* ================= ADMIN ================= */
+// ================= ADMIN =================
 const AdminDashboard = lazy(() =>
   import("../pages/admin/Dashboard")
 );
@@ -33,58 +36,24 @@ const Reports = lazy(() =>
   import("../pages/admin/Reports")
 );
 
-/* ================= LOADING ================= */
-const LoadingFallback = () => (
-  <div
-    style={{
-      minHeight: "100vh",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "#1e3a8a",
-      color: "white",
-      flexDirection: "column",
-    }}
-  >
-    <div
-      style={{
-        width: 40,
-        height: 40,
-        border: "4px solid rgba(255,255,255,0.4)",
-        borderTopColor: "#fff",
-        borderRadius: "50%",
-        animation: "spin 1s linear infinite",
-        marginBottom: 10,
-      }}
-    />
-    <p>Yuklanmoqda...</p>
-
-    <style>{`
-      @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-    `}</style>
-  </div>
-);
-
-/* ================= ROUTES ================= */
+// ================= ROUTES =================
 const AppRoutes = () => {
   const { loading } = useAuth();
 
-  if (loading) return <LoadingFallback />;
+  // auth tekshirilayotganda
+  if (loading) return <Loader />;
 
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<Loader />}>
       <Routes>
 
-        {/* PUBLIC */}
+        {/* ===== PUBLIC ===== */}
         <Route path="/" element={<AuthLayout />}>
           <Route index element={<Navigate to="/login" replace />} />
           <Route path="login" element={<Login />} />
         </Route>
 
-        {/* EMPLOYEE */}
+        {/* ===== EMPLOYEE ===== */}
         <Route
           path="/employee"
           element={
@@ -98,7 +67,7 @@ const AppRoutes = () => {
           <Route path="attendance" element={<AttendancePage />} />
         </Route>
 
-        {/* ADMIN */}
+        {/* ===== ADMIN ===== */}
         <Route
           path="/admin"
           element={
@@ -112,7 +81,7 @@ const AppRoutes = () => {
           <Route path="reports" element={<Reports />} />
         </Route>
 
-        {/* 404 */}
+        {/* ===== 404 ===== */}
         <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
@@ -121,5 +90,3 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
-
-
