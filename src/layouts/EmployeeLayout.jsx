@@ -50,7 +50,7 @@ const EmployeeLayout = () => {
         <NavLink to="/employee/attendance" className={({ isActive }) => 
           isActive ? 'nav-item active' : 'nav-item'
         }>
-          📝 Davomat
+           Davomat
         </NavLink>
       </nav>
 
