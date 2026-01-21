@@ -1,6 +1,6 @@
+// src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { 
   FaUser, 
   FaLock, 
@@ -14,16 +14,17 @@ import {
   FaRocket,
   FaCheck,
   FaGoogle,
-  FaMicrosoft,
   FaShieldAlt,
   FaHeadset,
   FaMobileAlt,
-  FaInfinity
+  FaInfinity,
+  FaBuilding
 } from 'react-icons/fa';
+import { loginWithEmail, loginWithGoogle, registerWithEmail } from '../../api/firebaseAuth.api';
 import './Login.css';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -33,13 +34,13 @@ const Login = () => {
     fullName: '',
     email: '',
     phone: '',
-    username: '',
+    position: '',
+    department: '',
     password: '',
     confirmPassword: '',
     role: 'employee'
   });
   
-  const { login, register } = useAuth();
   const navigate = useNavigate();
 
   const handleLoginSubmit = async (e) => {
@@ -48,23 +49,67 @@ const Login = () => {
     setError('');
 
     try {
-      const result = await login(username, password);
+      const result = await loginWithEmail(email, password);
+      
       if (result.success) {
-        const userData = localStorage.getItem('user');
-        if (userData) {
-          const user = JSON.parse(userData);
-          if (user.role === 'admin') {
-            navigate('/admin');
-          } else {
-            navigate('/employee');
-          }
+        // LocalStorage ga user ma'lumotlarini saqlash
+        localStorage.setItem('current_user', JSON.stringify(result.user));
+        localStorage.setItem('auth_token', result.token);
+        
+        // Rolga qarab yo'naltirish
+        if (result.user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/employee');
         }
       } else {
-        setError(result.message || 'Kirish muvaffaqiyatsiz bo\'ldi');
+        setError('Email yoki parol noto\'g\'ri');
       }
     } catch (err) {
-      setError('Server xatosi. Iltimos, qayta urinib ko\'ring.');
       console.error('Login error:', err);
+      
+      // Firebase error codes ga qarab xatolik xabarini ko'rsatish
+      switch(err.code) {
+        case 'auth/user-not-found':
+          setError('Bu email bilan ro\'yxatdan o\'tilmagan');
+          break;
+        case 'auth/wrong-password':
+          setError('Noto\'g\'ri parol');
+          break;
+        case 'auth/invalid-email':
+          setError('Noto\'g\'ri email formati');
+          break;
+        case 'auth/too-many-requests':
+          setError('Juda ko\'p urinish. Biroz kutib turing');
+          break;
+        default:
+          setError('Kirish muvaffaqiyatsiz. Qayta urinib ko\'ring');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await loginWithGoogle();
+      
+      if (result.success) {
+        localStorage.setItem('current_user', JSON.stringify(result.user));
+        localStorage.setItem('auth_token', result.token);
+        
+        if (result.user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/employee');
+        }
+      }
+    } catch (err) {
+      console.error('Google login error:', err);
+      setError('Google bilan kirish muvaffaqiyatsiz');
     } finally {
       setLoading(false);
     }
@@ -75,6 +120,7 @@ const Login = () => {
     setLoading(true);
     setError('');
 
+    // Validatsiya
     if (registerData.password !== registerData.confirmPassword) {
       setError('Parollar bir-biriga mos kelmadi');
       setLoading(false);
@@ -88,25 +134,50 @@ const Login = () => {
     }
 
     try {
-      const result = await register(registerData);
+      const result = await registerWithEmail({
+        email: registerData.email,
+        password: registerData.password,
+        name: registerData.fullName,
+        role: registerData.role,
+        position: registerData.position,
+        department: registerData.department,
+        phone: registerData.phone
+      });
+
       if (result.success) {
-        setError('Ro\'yxatdan o\'tish muvaffaqiyatli! Iltimos, tizimga kiring.');
+        setError('✅ Ro\'yxatdan o\'tish muvaffaqiyatli! Iltimos, tizimga kiring.');
         setActiveTab('login');
         setRegisterData({
           fullName: '',
           email: '',
           phone: '',
-          username: '',
+          position: '',
+          department: '',
           password: '',
           confirmPassword: '',
           role: 'employee'
         });
-      } else {
-        setError(result.message || 'Ro\'yxatdan o\'tish muvaffaqiyatsiz');
+        
+        // Auto login
+        setEmail(registerData.email);
+        setPassword(registerData.password);
       }
     } catch (err) {
-      setError('Server xatosi. Iltimos, qayta urinib ko\'ring.');
       console.error('Register error:', err);
+      
+      switch(err.code) {
+        case 'auth/email-already-in-use':
+          setError('Bu email allaqachon ro\'yxatdan o\'tilgan');
+          break;
+        case 'auth/invalid-email':
+          setError('Noto\'g\'ri email formati');
+          break;
+        case 'auth/weak-password':
+          setError('Parol juda oddiy. Kuchliroq parol tanlang');
+          break;
+        default:
+          setError('Ro\'yxatdan o\'tish muvaffaqiyatsiz');
+      }
     } finally {
       setLoading(false);
     }
@@ -120,9 +191,27 @@ const Login = () => {
     }));
   };
 
-  const handleDemoLogin = (demoUsername, demoPassword) => {
-    setUsername(demoUsername);
+  const handleDemoLogin = async (demoEmail, demoPassword) => {
+    setEmail(demoEmail);
     setPassword(demoPassword);
+    
+    // Demo hisob bilan login qilish
+    try {
+      const result = await loginWithEmail(demoEmail, demoPassword);
+      
+      if (result.success) {
+        localStorage.setItem('current_user', JSON.stringify(result.user));
+        localStorage.setItem('auth_token', result.token);
+        
+        if (result.user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/employee');
+        }
+      }
+    } catch (err) {
+      setError('Demo hisob bilan kirish muvaffaqiyatsiz');
+    }
   };
 
   return (
@@ -132,14 +221,14 @@ const Login = () => {
           <div className="brand-section">
             <div className="brand-logo">
               <FaShieldAlt className="logo-icon" />
-              <span className="brand-name">Trackio</span>
+              <span className="brand-name">HR Tizimi</span>
               <span className="brand-badge">PRO</span>
             </div>
             <h1 className="brand-tagline">
-              Ish samaradorligingizni <span className="highlight">oshiring</span>
+              Xodimlaringizni <span className="highlight">boshqaring</span>
             </h1>
             <p className="brand-description">
-              Zamonaviy xodimlarni boshqarish tizimi bilan jamoangiz samaradorligini maksimal darajaga olib chiqing
+              Zamonaviy HR tizimi bilan xodimlaringizni samarali boshqarish va monitoring qilish
             </p>
           </div>
 
@@ -148,8 +237,8 @@ const Login = () => {
               <div className="feature-icon blue-gradient">
                 <FaInfinity />
               </div>
-              <h4>Cheksiz miqyos</h4>
-              <p>Har qanday hajmdagi jamoalar uchun mos</p>
+              <h4>Cheksiz</h4>
+              <p>Har qanday hajmdagi kompaniyalar uchun</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon blue-gradient">
@@ -162,28 +251,28 @@ const Login = () => {
               <div className="feature-icon blue-gradient">
                 <FaMobileAlt />
               </div>
-              <h4>Mobil ilova</h4>
+              <h4>Mobil</h4>
               <p>Har qayerdan kirish imkoniyati</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon blue-gradient">
                 <FaCheck />
               </div>
-              <h4>ISO sertifikati</h4>
-              <p> Xavfsizlik standartlariga muvofiq</p>
+              <h4>Xavfsiz</h4>
+              <p>Firebase xavfsizlik</p>
             </div>
           </div>
 
           <div className="testimonial">
             <div className="testimonial-content">
               <p className="quote">
-                "Trackio bizning ish samaradorligimizni 40% oshirdi. Juda qulay va samarali tizim!"
+                "Bu tizim bizning HR jarayonlarimizni 50% oshirdi. Juda qulay va samarali!"
               </p>
               <div className="testimonial-author">
                 <div className="author-avatar"></div>
                 <div>
-                  <h5>Aliyev Shahob</h5>
-                  <p>TechCorp MChJ Bosh direktori</p>
+                  <h5>Alisher Usmonov</h5>
+                  <p>TechCorp HR Menejeri</p>
                 </div>
               </div>
             </div>
@@ -221,25 +310,25 @@ const Login = () => {
             <>
               <div className="form-header">
                 <h2 className="form-title">Xush kelibsiz!</h2>
-                <p className="form-subtitle">Hisobingizga kiring va boshqaruvga o'ting</p>
+                <p className="form-subtitle">Hisobingizga kiring</p>
               </div>
 
               <form onSubmit={handleLoginSubmit} className="auth-form">
                 <div className="form-group">
-                  <label htmlFor="username" className="form-label">
-                    <FaUser className="input-icon" />
-                    Foydalanuvchi nomi
+                  <label htmlFor="email" className="form-label">
+                    <FaEnvelope className="input-icon" />
+                    Email manzil
                   </label>
                   <div className="input-container">
                     <input
-                      type="text"
-                      id="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Foydalanuvchi nomingizni kiriting"
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="email@example.com"
                       required
                       disabled={loading}
-                      autoComplete="username"
+                      autoComplete="email"
                       className="form-input"
                     />
                   </div>
@@ -307,13 +396,14 @@ const Login = () => {
                 </div>
 
                 <div className="social-login">
-                  <button type="button" className="social-btn google-btn">
+                  <button 
+                    type="button" 
+                    className="social-btn google-btn"
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                  >
                     <FaGoogle className="social-icon" />
                     Google bilan kirish
-                  </button>
-                  <button type="button" className="social-btn microsoft-btn">
-                    <FaMicrosoft className="social-icon" />
-                    Microsoft bilan kirish
                   </button>
                 </div>
               </form>
@@ -326,7 +416,7 @@ const Login = () => {
                 <div className="demo-grid">
                   <div 
                     className="demo-card admin-demo"
-                    onClick={() => handleDemoLogin('admin1', 'admin123')}
+                    onClick={() => handleDemoLogin('admin@hr.com', 'admin123')}
                   >
                     <div className="demo-card-header">
                       <div className="demo-icon-wrapper blue-gradient">
@@ -336,13 +426,14 @@ const Login = () => {
                     </div>
                     <div className="demo-card-content">
                       <h5>Admin Panel</h5>
-                      <p>admin1 / admin123</p>
+                      <p>admin@hr.com</p>
+                      <small>Parol: admin123</small>
                     </div>
                     <div className="demo-card-hint">Sinab ko'rish →</div>
                   </div>
                   <div 
                     className="demo-card employee-demo"
-                    onClick={() => handleDemoLogin('employee1', '123456')}
+                    onClick={() => handleDemoLogin('employee@hr.com', '123456')}
                   >
                     <div className="demo-card-header">
                       <div className="demo-icon-wrapper blue-gradient">
@@ -352,7 +443,8 @@ const Login = () => {
                     </div>
                     <div className="demo-card-content">
                       <h5>Xodim Panel</h5>
-                      <p>employee1 / 123456</p>
+                      <p>employee@hr.com</p>
+                      <small>Parol: 123456</small>
                     </div>
                     <div className="demo-card-hint">Sinab ko'rish →</div>
                   </div>
@@ -363,7 +455,7 @@ const Login = () => {
             <>
               <div className="form-header">
                 <h2 className="form-title">Yangi hisob ochish</h2>
-                <p className="form-subtitle">Trackio tizimidan foydalanish uchun ro'yxatdan o'ting</p>
+                <p className="form-subtitle">Tizimdan foydalanish uchun ro'yxatdan o'ting</p>
               </div>
 
               <form onSubmit={handleRegisterSubmit} className="auth-form register-form">
@@ -429,22 +521,69 @@ const Login = () => {
                     </div>
                   </div>
                   <div className="form-group">
-                    <label htmlFor="username" className="form-label">
+                    <label htmlFor="position" className="form-label">
                       <FaUserTag className="input-icon" />
-                      Foydalanuvchi nomi
+                      Lavozim
                     </label>
                     <div className="input-container">
                       <input
                         type="text"
-                        id="username"
-                        name="username"
-                        value={registerData.username}
+                        id="position"
+                        name="position"
+                        value={registerData.position}
                         onChange={handleRegisterChange}
-                        placeholder="username"
+                        placeholder="Dasturchi, Menejer, ..."
                         required
                         disabled={loading}
                         className="form-input"
                       />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="department" className="form-label">
+                      <FaBuilding className="input-icon" />
+                      Bo'lim
+                    </label>
+                    <div className="input-container">
+                      <select
+                        id="department"
+                        name="department"
+                        value={registerData.department}
+                        onChange={handleRegisterChange}
+                        disabled={loading}
+                        className="form-input"
+                      >
+                        <option value="">Bo'limni tanlang</option>
+                        <option value="IT">IT Bo'limi</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Sales">Sotuv</option>
+                        <option value="HR">HR</option>
+                        <option value="Finance">Moliya</option>
+                        <option value="Operations">Operatsiyalar</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="role" className="form-label">
+                      <FaCrown className="input-icon" />
+                      Rol
+                    </label>
+                    <div className="input-container">
+                      <select
+                        id="role"
+                        name="role"
+                        value={registerData.role}
+                        onChange={handleRegisterChange}
+                        disabled={loading}
+                        className="form-input"
+                      >
+                        <option value="employee">Xodim</option>
+                        <option value="manager">Menejer</option>
+                        <option value="admin">Administrator</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -497,34 +636,13 @@ const Login = () => {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="role" className="form-label">
-                    <FaUserTag className="input-icon" />
-                    Rol
-                  </label>
-                  <div className="input-container">
-                    <select
-                      id="role"
-                      name="role"
-                      value={registerData.role}
-                      onChange={handleRegisterChange}
-                      disabled={loading}
-                      className="form-input"
-                    >
-                      <option value="employee">Xodim</option>
-                      <option value="manager">Menejer</option>
-                      <option value="admin">Administrator</option>
-                    </select>
-                  </div>
-                </div>
-
                 <div className="form-options">
                   <label className="checkbox-container">
                     <input type="checkbox" required />
                     <span className="checkmark"></span>
                     <span>
                       Men <Link to="/terms">foydalanish shartlari</Link> va{' '}
-                      <Link to="/privacy">maxfiylik siyosati</Link> bilan tanishdim va roziman
+                      <Link to="/privacy">maxfiylik siyosati</Link> bilan tanishdim
                     </span>
                   </label>
                 </div>
@@ -552,7 +670,12 @@ const Login = () => {
                 </div>
 
                 <div className="social-login">
-                  <button type="button" className="social-btn google-btn">
+                  <button 
+                    type="button" 
+                    className="social-btn google-btn"
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                  >
                     <FaGoogle className="social-icon" />
                     Google bilan ro'yxatdan o'tish
                   </button>
@@ -567,19 +690,19 @@ const Login = () => {
                 <ul className="benefits-list">
                   <li>
                     <FaCheck className="benefit-icon" />
-                    <span>14 kun bepul sinov muddati</span>
+                    <span>Firebase xavfsizligi</span>
                   </li>
                   <li>
                     <FaCheck className="benefit-icon" />
-                    <span>Cheksiz xodimlar soni</span>
+                    <span>Real-time ma'lumotlar</span>
                   </li>
                   <li>
                     <FaCheck className="benefit-icon" />
-                    <span>24/7 texnik yordam</span>
+                    <span>Mobil optimallashtirilgan</span>
                   </li>
                   <li>
                     <FaCheck className="benefit-icon" />
-                    <span>Mobil ilovaga bepul kirish</span>
+                    <span>Bepul boshlang'ich reja</span>
                   </li>
                 </ul>
               </div>
@@ -590,14 +713,11 @@ const Login = () => {
             <p className="footer-contact">
               Savollaringiz bormi?{' '}
               <Link to="/contact" className="footer-link">
-                Biz bilan bog'laning
+                Yordam markazi
               </Link>
-              <span className="phone-number">
-                <FaPhone /> +998 90 123 45 67
-              </span>
             </p>
             <p className="copyright">
-              © 2024 Trackio Pro. Barcha huquqlar himoyalangan.
+              © 2024 HR Management System. Firebase asosida.
             </p>
           </div>
         </div>
